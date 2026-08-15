@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-muted: #f7f7f8;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --ring: #4f46e5;
+
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-foreground: #ffffff;
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-muted: #fef2f2;
+  --danger-border: #fecaca;
+
+  --success: #16a34a;
+  --success-muted: #f0fdf4;
+  --success-border: #bbf7d0;
+
+  --muted-foreground: #6b7280;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-muted: var(--danger-muted);
+  --color-danger-border: var(--danger-border);
+
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+  --color-success-border: var(--success-border);
+
+  --color-muted-foreground: var(--muted-foreground);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #f2f2f2;
+    --surface: #151517;
+    --surface-muted: #1c1c1f;
+    --border: #2a2a2e;
+    --border-strong: #3a3a3f;
+    --ring: #818cf8;
+
+    --primary: #6366f1;
+    --primary-hover: #818cf8;
+    --primary-foreground: #ffffff;
+
+    --danger: #f87171;
+    --danger-hover: #fca5a5;
+    --danger-muted: #2a1516;
+    --danger-border: #4c1d1d;
+
+    --success: #4ade80;
+    --success-muted: #0f2417;
+    --success-border: #14532d;
+
+    --muted-foreground: #a1a1aa;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+}
+
+/* Browsers don't give <button> a pointer cursor by default (only <a> gets
+   one) — restore it everywhere so clickable buttons read as clickable. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Hide the native up/down spinner on all number inputs (Chrome/Safari/Edge
+   use the webkit pseudo-elements, Firefox uses -moz-appearance). */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Thin, muted scrollbar for any scrollable panel that opts in — used by the
+   Dropdown options list and the chat message history. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 0.6s linear infinite;
+}
