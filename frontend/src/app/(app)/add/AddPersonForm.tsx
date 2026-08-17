@@ -108,7 +108,7 @@ export function AddPersonForm() {
     if (!inviteUrl) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Join our family on FamilyTree", url: inviteUrl });
+        await navigator.share({ title: "Join our family on GenFolio", url: inviteUrl });
       } catch {
         // User canceled the share sheet — nothing to do.
       }

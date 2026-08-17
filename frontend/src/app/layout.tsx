@@ -20,7 +20,7 @@ const nunitoSans = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FamilyTree",
+  title: "GenFolio",
   description: "See how your family connects, and the health patterns you share.",
 };
 

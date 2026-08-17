@@ -45,7 +45,7 @@ async def upload_profile_picture(
         # replaces the old photo instead of accumulating new ones.
         return cloudinary.uploader.upload(
             contents,
-            folder=f"familytree/{family_id}",
+            folder=f"genfolio/{family_id}",
             public_id=str(person_id),
             overwrite=True,
             resource_type="image",

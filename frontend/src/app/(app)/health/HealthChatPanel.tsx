@@ -24,7 +24,7 @@ type Entry =
   | { kind: "chat"; role: "user" | "assistant"; content: string; citedRelatives?: CitedRelative[] }
   | { kind: "matches"; matches: HealthMatch[] };
 
-const SESSION_STORAGE_KEY = "familytree_chat_session_id";
+const SESSION_STORAGE_KEY = "genfolio_chat_session_id";
 
 type Props = {
   onClose?: () => void;

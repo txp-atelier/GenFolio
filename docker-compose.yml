@@ -1,17 +1,19 @@
+name: genfolio
+
 services:
   db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: familytree
-      POSTGRES_PASSWORD: familytree
-      POSTGRES_DB: familytree
+      POSTGRES_USER: genfolio
+      POSTGRES_PASSWORD: genfolio
+      POSTGRES_DB: genfolio
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U familytree -d familytree"]
+      test: ["CMD-SHELL", "pg_isready -U genfolio -d genfolio"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +24,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://familytree:familytree@db:5432/familytree
+      DATABASE_URL: postgresql+asyncpg://genfolio:genfolio@db:5432/genfolio
     ports:
       - "8000:8000"
     volumes:

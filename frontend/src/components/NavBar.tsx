@@ -46,7 +46,7 @@ export function NavBar({ me }: { me: MeResponse }) {
               >
                 <TreeIcon width={18} height={18} stroke="currentColor" />
               </span>
-              <span className="hidden sm:inline">FamilyTree</span>
+              <span className="hidden sm:inline">GenFolio</span>
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
               {NAV_LINKS.map((link) => (

@@ -2,10 +2,13 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/authCookies";
+import {
+  ACCESS_TOKEN_COOKIE,
+  accessCookieOptions,
+  REFRESH_TOKEN_COOKIE,
+  refreshCookieOptions,
+} from "@/lib/authCookies";
 import { BACKEND_INTERNAL_URL } from "@/lib/config";
-
-const isProduction = process.env.NODE_ENV === "production";
 
 export async function getAccessToken(): Promise<string | undefined> {
   const store = await cookies();
@@ -14,20 +17,8 @@ export async function getAccessToken(): Promise<string | undefined> {
 
 export async function setAuthCookies(accessToken: string, refreshToken: string) {
   const store = await cookies();
-  store.set(ACCESS_TOKEN_COOKIE, accessToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 30, // mirrors backend ACCESS_TOKEN_EXPIRE_MINUTES
-  });
-  store.set(REFRESH_TOKEN_COOKIE, refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // mirrors backend REFRESH_TOKEN_EXPIRE_DAYS
-  });
+  store.set(ACCESS_TOKEN_COOKIE, accessToken, accessCookieOptions());
+  store.set(REFRESH_TOKEN_COOKIE, refreshToken, refreshCookieOptions());
 }
 
 export async function clearAuthCookies() {

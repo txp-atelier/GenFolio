@@ -1,4 +1,4 @@
-# FamilyTree
+# GenFolio
 
 A family-tree app where you build your tree by inviting relatives (not by manually drawing nodes), track shared family health history, and ask a RAG chatbot what conditions run in your family — scoped strictly to your own blood relatives.
 
@@ -33,7 +33,7 @@ Two pieces of this were genuinely non-trivial:
 ## Architecture
 
 ```
-FamilyTree/
+GenFolio/
   frontend/    Next.js — presentation + a thin auth proxy, not a second backend
   backend/     FastAPI — the one source of truth for business logic, auth, and RAG
     app/
@@ -54,7 +54,7 @@ Requires Docker, or Python 3.13+ and Node 20+ if running services natively.
 
 ```bash
 git clone <this-repo>
-cd FamilyTree
+cd GenFolio
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 # fill in GROQ_API_KEY in backend/.env to enable the chatbot; everything else

@@ -10,7 +10,7 @@ import {
 } from "@/components/illustrations/Illustrations";
 import { Button } from "@/components/ui/Button";
 
-const STORAGE_KEY = "familytree_onboarding_dismissed_v1";
+const STORAGE_KEY = "genfolio_onboarding_dismissed_v1";
 
 const STEPS = [
   {

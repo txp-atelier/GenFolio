@@ -6,10 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    app_name: str = "FamilyTree API"
+    app_name: str = "GenFolio API"
     environment: str = "development"
 
-    database_url: str = "postgresql+asyncpg://familytree:familytree@localhost:5432/familytree"
+    database_url: str = "postgresql+asyncpg://genfolio:genfolio@localhost:5432/genfolio"
 
     jwt_secret: str = "change-me-in-env"
     jwt_algorithm: str = "HS256"

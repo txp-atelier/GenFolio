@@ -25,7 +25,7 @@ export function AuthCard({
         >
           <TreeIcon width={18} height={18} stroke="currentColor" />
         </span>
-        FamilyTree
+        GenFolio
       </Link>
       <Card className="flex flex-col gap-5">
         <div>

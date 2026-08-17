@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createPortal } from "react-dom";
 
 import { Avatar } from "@/components/Avatar";
 import { CloseIcon } from "@/components/icons";
@@ -38,7 +39,11 @@ export function FamilyMemberReportModal({ personId, onClose }: Props) {
   if (!personId) return null;
   const onTreePage = pathname.startsWith("/tree");
 
-  return (
+  // Portaled to <body> so this always paints above the navbar: several
+  // callers (e.g. the health chat panel) render this inside a `position:
+  // sticky` ancestor, which starts its own stacking context and traps a
+  // merely-higher z-index underneath the navbar regardless of its value.
+  return createPortal(
     <div
       className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4"
       onClick={onClose}
@@ -107,13 +112,14 @@ export function FamilyMemberReportModal({ personId, onClose }: Props) {
                 onClick={onClose}
                 className="text-sm font-medium text-primary-text hover:underline"
               >
-                View in family tree →
+                View in family tree
               </Link>
             )}
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
