@@ -22,7 +22,12 @@ export default async function JoinPage({ params }: PageProps<"/join/[token]">) {
   if (!res.ok) {
     return (
       <main className="flex flex-1 items-center justify-center p-8">
-        <Alert variant="error">This invite link isn&apos;t valid.</Alert>
+        <AuthCard title="This link doesn't look right">
+          <Alert variant="error">
+            We couldn&apos;t find this invitation. Double-check the link, or ask whoever sent it to
+            send a fresh one.
+          </Alert>
+        </AuthCard>
       </main>
     );
   }
@@ -32,11 +37,13 @@ export default async function JoinPage({ params }: PageProps<"/join/[token]">) {
   if (invite.status !== "pending") {
     return (
       <main className="flex flex-1 items-center justify-center p-8">
-        <Alert variant="error">
-          {invite.status === "expired"
-            ? "This invite link has expired — ask for a new one."
-            : "This invite link has already been used."}
-        </Alert>
+        <AuthCard title="This invite can't be used">
+          <Alert variant="error">
+            {invite.status === "expired"
+              ? "This invite link has expired — ask for a new one."
+              : "This invite link has already been used."}
+          </Alert>
+        </AuthCard>
       </main>
     );
   }

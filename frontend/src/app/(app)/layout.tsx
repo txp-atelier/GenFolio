@@ -27,7 +27,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <UserProvider me={me}>
       <NavBar me={me} />
-      {children}
+      {/* Bottom padding clears the fixed mobile tab bar so the last bit of
+          content is never hidden behind it. */}
+      <div className="flex flex-1 flex-col pb-20 sm:pb-0">{children}</div>
     </UserProvider>
   );
 }

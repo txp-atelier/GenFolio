@@ -9,18 +9,32 @@ from app.models.person import Person
 from app.models.user import User
 from app.schemas.health_records import (
     CreateHealthRecordRequest,
+    HealthMatchOut,
     HealthRecordOut,
+    HealthSearchResponse,
+    HealthSearchResultOut,
+    PersonHealthReportOut,
     UpdateHealthRecordRequest,
 )
 from app.services.auth_service import get_person_by_user_id
 from app.services.health_record_service import (
     HealthRecordNotFoundError,
     InvalidHealthRecordValueError,
+    age_from_dob,
     create_health_record,
     delete_health_record,
+    find_family_health_matches,
+    get_family_health_snapshots,
+    get_family_member,
+    latest_by_category,
     list_health_records,
+    list_visible_health_records,
+    parse_health_query,
+    person_ids_matching_relationship,
+    search_family_by_health,
     update_health_record,
 )
+from app.services.relationship_service import load_family_graph, load_family_persons
 
 router = APIRouter(prefix="/health-records", tags=["health-records"])
 
@@ -62,6 +76,96 @@ async def list_records(
     person = await _get_own_person(db, current_user)
     records = await list_health_records(db, person.id)
     return [HealthRecordOut.model_validate(r) for r in records]
+
+
+@router.get("/compare", response_model=list[HealthMatchOut])
+async def compare_with_family(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[HealthMatchOut]:
+    person = await _get_own_person(db, current_user)
+    matches = await find_family_health_matches(db, person, limit=10)
+    return [
+        HealthMatchOut(
+            person_id=match_person.id,
+            first_name=match_person.first_name,
+            last_name=match_person.last_name,
+            sex=match_person.sex,
+            age=age_from_dob(match_person.dob),
+            profile_picture_url=match_person.profile_picture_url,
+            match_percentage=round(score, 1),
+        )
+        for match_person, score in matches
+    ]
+
+
+@router.get("/search", response_model=HealthSearchResponse)
+async def search_by_health_query(
+    q: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> HealthSearchResponse:
+    viewer = await _get_own_person(db, current_user)
+    parsed = parse_health_query(q)
+    if parsed is None:
+        return HealthSearchResponse(recognized=False, results=[])
+
+    viewer_latest = latest_by_category(await list_health_records(db, viewer.id))
+    snapshots = await get_family_health_snapshots(db, viewer)
+
+    if parsed.relationship_keywords:
+        graph = await load_family_graph(db, viewer.family_id)
+        persons = await load_family_persons(db, viewer.family_id)
+        allowed_person_ids = person_ids_matching_relationship(
+            graph, persons, viewer.id, parsed.relationship_keywords
+        )
+        snapshots = [(person, latest) for person, latest in snapshots if person.id in allowed_person_ids]
+
+    matches = search_family_by_health(snapshots, parsed, viewer_latest)
+
+    return HealthSearchResponse(
+        recognized=True,
+        results=[
+            HealthSearchResultOut(
+                person_id=person.id,
+                first_name=person.first_name,
+                last_name=person.last_name,
+                sex=person.sex,
+                age=age_from_dob(person.dob),
+                profile_picture_url=person.profile_picture_url,
+                matched_value=matched_value,
+            )
+            for person, matched_value in matches
+        ],
+    )
+
+
+@router.get("/family/{person_id}", response_model=PersonHealthReportOut)
+async def get_family_member_report(
+    person_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PersonHealthReportOut:
+    viewer = await _get_own_person(db, current_user)
+    target = await get_family_member(db, viewer, person_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Person not found")
+
+    latest = latest_by_category(await list_visible_health_records(db, person_id))
+    return PersonHealthReportOut(
+        person_id=target.id,
+        first_name=target.first_name,
+        last_name=target.last_name,
+        sex=target.sex,
+        age=age_from_dob(target.dob),
+        profile_picture_url=target.profile_picture_url,
+        blood_sugar=HealthRecordOut.model_validate(latest["blood_sugar"]) if "blood_sugar" in latest else None,
+        blood_pressure=HealthRecordOut.model_validate(latest["blood_pressure"])
+        if "blood_pressure" in latest
+        else None,
+        cholesterol=HealthRecordOut.model_validate(latest["cholesterol"]) if "cholesterol" in latest else None,
+        other=HealthRecordOut.model_validate(latest["other"]) if "other" in latest else None,
+    )
 
 
 @router.patch("/{record_id}", response_model=HealthRecordOut)

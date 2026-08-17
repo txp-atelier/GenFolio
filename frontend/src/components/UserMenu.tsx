@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { SettingsIcon } from "@/components/icons";
 import type { MeResponse } from "@/lib/types";
 
 import { Avatar } from "./Avatar";
@@ -51,10 +52,10 @@ export function UserMenu({ me }: { me: MeResponse }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-surface shadow-lg"
+          className="animate-rise-in absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
         >
-          <div className="border-b border-border px-3 py-2.5">
-            <p className="truncate text-sm font-medium text-foreground">
+          <div className="border-b border-border px-4 py-3">
+            <p className="truncate text-sm font-semibold text-foreground">
               {me.first_name} {me.last_name}
             </p>
             <p className="truncate text-xs text-muted-foreground">{me.user.email}</p>
@@ -63,17 +64,18 @@ export function UserMenu({ me }: { me: MeResponse }) {
             href="/profile"
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="block px-3 py-2 text-sm text-foreground hover:bg-surface-muted"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-surface-muted"
           >
-            Edit profile
+            <SettingsIcon width={17} height={17} className="text-muted-foreground" />
+            Settings
           </Link>
           <button
             role="menuitem"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="block w-full px-3 py-2 text-left text-sm text-danger hover:bg-danger-muted disabled:opacity-50"
+            className="block w-full px-4 py-2.5 text-left text-sm text-danger hover:bg-danger-muted disabled:opacity-50"
           >
-            {loggingOut ? "Logging out..." : "Log out"}
+            {loggingOut ? "Signing you out…" : "Log out"}
           </button>
         </div>
       )}

@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
             </p>
             <TextField label="Email" type="email" required error={errors.email?.message} {...register("email")} />
             <Button type="submit" loading={isSubmitting} className="w-full">
-              Send reset link
+              {isSubmitting ? "Sending…" : "Send reset link"}
             </Button>
           </form>
         ) : (

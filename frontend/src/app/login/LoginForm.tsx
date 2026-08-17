@@ -39,7 +39,11 @@ export function LoginForm() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setServerError(typeof data.detail === "string" ? data.detail : "Login failed");
+      setServerError(
+        typeof data.detail === "string"
+          ? data.detail
+          : "We couldn't log you in — check your email and password and try again."
+      );
       return;
     }
 
@@ -82,7 +86,7 @@ export function LoginForm() {
         {serverError && <Alert variant="error">{serverError}</Alert>}
 
         <Button type="submit" loading={isSubmitting} className="w-full">
-          Log in
+          {isSubmitting ? "Logging in…" : "Log in"}
         </Button>
       </form>
     </AuthCard>

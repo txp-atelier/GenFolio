@@ -13,8 +13,8 @@ export type TreeConnector = TreeResult["connectors"][number];
 // next to each other) — these are the pixel dimensions of that card. Tall
 // enough that a 4-line card (avatar, name, relationship, "not yet joined")
 // never has to overflow its cell and bleed into the connector lines above it.
-export const NODE_CELL_WIDTH = 160;
-export const NODE_CELL_HEIGHT = 150;
+export const NODE_CELL_WIDTH = 172;
+export const NODE_CELL_HEIGHT = 158;
 
 export function gridToPxX(v: number): number {
   return v * (NODE_CELL_WIDTH / 2);
@@ -111,4 +111,40 @@ export function buildFamilyTreeLayout(persons: PersonNode[], rootId: string): Tr
   // isolatedModules, so we build plain string-valued objects instead.
   const nodes = buildNodes(persons) as unknown as TreeInputNode[];
   return calcTree(nodes, { rootId });
+}
+
+/** How many generations "up" (negative, toward ancestors) or "down"
+ * (positive, toward descendants) each person sits from the ego, via a BFS
+ * that treats a parent edge as -1, a child edge as +1, and a spouse edge as
+ * 0. This is what lets the tree color-code every card by generation instead
+ * of requiring the viewer to read relationship labels to understand the
+ * shape of the family. */
+export function computeGenerationDepths(persons: PersonNode[], egoId: string): Map<string, number> {
+  const byId = new Map(persons.map((p) => [p.person_id, p] as const));
+  const depths = new Map<string, number>();
+  if (!byId.has(egoId)) return depths;
+
+  depths.set(egoId, 0);
+  const queue: string[] = [egoId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const person = byId.get(id);
+    if (!person) continue;
+    const depth = depths.get(id)!;
+
+    const steps: [string[], number][] = [
+      [person.parent_ids, depth - 1],
+      [person.child_ids, depth + 1],
+      [person.spouse_ids, depth],
+    ];
+    for (const [ids, nextDepth] of steps) {
+      for (const neighborId of ids) {
+        if (!depths.has(neighborId)) {
+          depths.set(neighborId, nextDepth);
+          queue.push(neighborId);
+        }
+      }
+    }
+  }
+  return depths;
 }

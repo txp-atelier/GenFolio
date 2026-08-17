@@ -18,6 +18,7 @@ export const config = {
     "/tree/:path*",
     "/health/:path*",
     "/profile/:path*",
-    "/chat/:path*",
+    "/add/:path*",
+    "/search/:path*",
   ],
 };

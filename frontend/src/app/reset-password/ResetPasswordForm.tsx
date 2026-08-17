@@ -38,7 +38,11 @@ export function ResetPasswordForm() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setServerError(typeof data.detail === "string" ? data.detail : "Reset failed");
+      setServerError(
+        typeof data.detail === "string"
+          ? data.detail
+          : "We couldn't reset your password — please try again."
+      );
       return;
     }
 
@@ -79,7 +83,7 @@ export function ResetPasswordForm() {
         {serverError && <Alert variant="error">{serverError}</Alert>}
 
         <Button type="submit" loading={isSubmitting} className="w-full">
-          Save new password
+          {isSubmitting ? "Saving…" : "Save new password"}
         </Button>
       </form>
     </AuthCard>

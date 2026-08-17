@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Avatar } from "@/components/Avatar";
+import { ShieldIcon } from "@/components/icons";
 import { Dropdown, type DropdownOption } from "@/components/Dropdown";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +18,6 @@ import { profileSchema, type ProfileFormValues } from "@/lib/validation/profile"
 import type { MeResponse } from "@/lib/types";
 
 const SEX_OPTIONS: DropdownOption[] = [
-  { value: "", label: "Prefer not to say" },
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
 ];
@@ -79,7 +79,11 @@ export function ProfileClient() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setSaving(false);
-        setServerError(typeof data.detail === "string" ? data.detail : "Could not upload image");
+        setServerError(
+          typeof data.detail === "string"
+            ? data.detail
+            : "We couldn't upload that photo — please try a different file."
+        );
         return;
       }
       nextMe = data;
@@ -89,17 +93,21 @@ export function ProfileClient() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        dob: values.dob || null,
-        sex: values.sex || null,
-        height_cm: values.height_cm ? Number(values.height_cm) : null,
-        weight_kg: values.weight_kg ? Number(values.weight_kg) : null,
+        dob: values.dob,
+        sex: values.sex,
+        height_cm: Number(values.height_cm),
+        weight_kg: Number(values.weight_kg),
       }),
     });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
 
     if (!res.ok) {
-      setServerError(typeof data.detail === "string" ? data.detail : "Could not save changes");
+      setServerError(
+        typeof data.detail === "string"
+          ? data.detail
+          : "We couldn't save your changes — please try again."
+      );
       return;
     }
 
@@ -113,7 +121,10 @@ export function ProfileClient() {
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-foreground">Your profile</h1>
+      <div>
+        <h1 className="font-heading text-xl font-bold text-foreground">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Your profile, and who can see what.</p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <Card className="flex flex-col gap-6">
@@ -154,6 +165,7 @@ export function ProfileClient() {
             render={({ field }) => (
               <DateField
                 label="Date of birth"
+                required
                 value={field.value}
                 onChange={field.onChange}
                 maxDate={new Date()}
@@ -168,6 +180,8 @@ export function ProfileClient() {
             render={({ field }) => (
               <Dropdown
                 label="Gender"
+                required
+                placeholder="Select gender"
                 options={SEX_OPTIONS}
                 value={field.value}
                 onChange={field.onChange}
@@ -181,6 +195,7 @@ export function ProfileClient() {
               label="Height (cm)"
               type="number"
               step="any"
+              required
               error={errors.height_cm?.message}
               {...register("height_cm")}
             />
@@ -188,19 +203,40 @@ export function ProfileClient() {
               label="Weight (kg)"
               type="number"
               step="any"
+              required
               error={errors.weight_kg?.message}
               {...register("weight_kg")}
             />
           </div>
 
           {serverError && <Alert variant="error">{serverError}</Alert>}
-          {saved && <Alert variant="success">Profile updated.</Alert>}
+          {saved && <Alert variant="success">Your profile has been updated.</Alert>}
 
           <Button type="submit" loading={saving} className="self-start">
-            Save changes
+            {saving ? "Saving…" : "Save changes"}
           </Button>
         </Card>
       </form>
+
+      <Card className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+            style={{ background: "var(--gen-up1)" }}
+          >
+            <ShieldIcon width={18} height={18} />
+          </span>
+          <h2 className="font-heading text-base font-semibold text-foreground">Privacy &amp; sharing</h2>
+        </div>
+        <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <li>Only people you&apos;ve added to your family tree can see your profile and photo.</li>
+          <li>
+            Health details you log stay private to you by default — you choose what to share when you
+            save a health report.
+          </li>
+          <li>Invite links only work once, and stop working after 7 days if no one uses them.</li>
+        </ul>
+      </Card>
     </main>
   );
 }

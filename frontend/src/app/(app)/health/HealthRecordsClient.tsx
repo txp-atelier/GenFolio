@@ -1,134 +1,60 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { Alert } from "@/components/ui/Alert";
-import { Card } from "@/components/ui/Card";
+import { ChatIcon } from "@/components/icons";
 
-import { HealthRecordForm } from "./HealthRecordForm";
-import { HealthRecordList } from "./HealthRecordList";
-import type { HealthRecord } from "./types";
-
-const QUERY_KEY = ["health-records"];
-
-function summarizeError(data: unknown): string {
-  if (typeof data === "object" && data !== null && "detail" in data) {
-    const detail = (data as { detail: unknown }).detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) {
-      return detail
-        .map((e: { loc?: unknown[]; msg?: string }) => {
-          const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : "value";
-          return `${field}: ${e.msg}`;
-        })
-        .join(", ");
-    }
-  }
-  return "Something went wrong";
-}
-
-async function fetchRecords(): Promise<HealthRecord[]> {
-  const res = await fetch("/api/health-records");
-  if (!res.ok) throw new Error("Could not load health records");
-  return res.json();
-}
-
-type CreatePayload = {
-  category: string;
-  value: Record<string, unknown>;
-  recorded_at?: string;
-  visible_to_family?: boolean;
-};
-type UpdatePayload = {
-  value?: Record<string, unknown>;
-  recorded_at?: string;
-  visible_to_family?: boolean;
-};
+import { HealthChatPanel } from "./HealthChatPanel";
+import { HealthReport } from "./HealthReport";
 
 export function HealthRecordsClient() {
-  const queryClient = useQueryClient();
-  const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
-
-  const {
-    data: records,
-    isLoading,
-    error: loadError,
-  } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchRecords });
-
-  const createMutation = useMutation({
-    mutationFn: async (payload: CreatePayload) => {
-      const res = await fetch("/api/health-records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(summarizeError(await res.json().catch(() => ({}))));
-      return res.json();
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: UpdatePayload }) => {
-      const res = await fetch(`/api/health-records/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(summarizeError(await res.json().catch(() => ({}))));
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      setEditingRecord(null);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/health-records/${id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) throw new Error("Could not delete record");
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
-  });
+  const [chatOpen, setChatOpen] = useState(false);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-xl font-semibold text-foreground">Health records</h1>
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6">
+      <div>
+        <h1 className="font-heading text-xl font-bold text-foreground">Your health report</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Keep track of the numbers that matter, and see what runs in the family.
+        </p>
+      </div>
 
-      <Card>
-        <HealthRecordForm
-          key={editingRecord?.id ?? "new"}
-          record={editingRecord ?? undefined}
-          submitting={createMutation.isPending || updateMutation.isPending}
-          error={
-            (createMutation.error as Error | null)?.message ??
-            (updateMutation.error as Error | null)?.message ??
-            null
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6">
+        <HealthReport />
+
+        {/* Mobile-only backdrop behind the popped-up chat panel. */}
+        {chatOpen && (
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 z-40 bg-foreground/40 lg:hidden"
+            onClick={() => setChatOpen(false)}
+          />
+        )}
+
+        {/* One HealthChatPanel instance, repositioned by breakpoint: an
+            always-visible sticky column on large screens, a full-screen
+            popup toggled by the floating button on small ones. */}
+        <div
+          className={
+            chatOpen
+              ? "fixed inset-4 z-50 flex lg:static lg:inset-auto lg:z-auto lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)]"
+              : "hidden lg:sticky lg:top-24 lg:z-auto lg:flex lg:h-[calc(100vh-8rem)]"
           }
-          onCancelEdit={editingRecord ? () => setEditingRecord(null) : undefined}
-          onSubmit={async (payload) => {
-            if (editingRecord) {
-              await updateMutation.mutateAsync({ id: editingRecord.id, payload });
-            } else {
-              await createMutation.mutateAsync(payload as CreatePayload);
-            }
-          }}
-        />
-      </Card>
+        >
+          <HealthChatPanel onClose={() => setChatOpen(false)} />
+        </div>
+      </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
-      {loadError && <Alert variant="error">Could not load health records.</Alert>}
-
-      {records && (
-        <HealthRecordList
-          records={records}
-          onEdit={setEditingRecord}
-          onDelete={(id) => deleteMutation.mutate(id)}
-          deletingId={deleteMutation.isPending ? (deleteMutation.variables as string) : undefined}
-        />
-      )}
+      {/* Floating chat launcher — small screens only; on large screens the
+          panel is already visible alongside the report. */}
+      <button
+        type="button"
+        aria-label="Open family health chat"
+        onClick={() => setChatOpen(true)}
+        className="fixed right-5 bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover lg:hidden"
+      >
+        <ChatIcon width={24} height={24} />
+      </button>
     </main>
   );
 }

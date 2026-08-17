@@ -1,28 +1,59 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------
+ * FamilyTree design tokens — a warm "heritage" palette instead of a flat
+ * IDE-style black/white/gray + single accent. Every pair below has been
+ * checked against WCAG AA (4.5:1 for body text, 3:1 for large text/icons
+ * and focus indicators). See docs/style-guide for the source numbers.
+ * ------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff0e1; /* oat */
+  --foreground: #2a2740; /* deep indigo-charcoal, not pure black */
   --surface: #ffffff;
-  --surface-muted: #f7f7f8;
-  --border: #e5e5e5;
-  --border-strong: #d4d4d4;
-  --ring: #4f46e5;
+  --surface-muted: #f7e9d8; /* warm oat-tan */
+  --border: #ead9be;
+  --border-strong: #d8be93;
+  --ring: #3e5c74; /* dusty blue — kept distinct from the primary color so focus is always unmistakable */
 
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
+  --primary: #5b4fd1; /* indigo */
+  --primary-hover: #4a3fb8;
+  --primary-text: #4a3fb8; /* for text/links on light backgrounds — darker than the fill so it still clears 4.5:1 */
   --primary-foreground: #ffffff;
+  --primary-muted: #c8c3ff; /* the pale indigo tint — chip/badge backgrounds, paired with --primary-text */
 
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-muted: #fef2f2;
-  --danger-border: #fecaca;
+  --danger: #b23b2e; /* brick red — warmer than a raw dev-console red, still unmistakably "error" */
+  --danger-hover: #97301f;
+  --danger-muted: #fbeae3;
+  --danger-border: #e8c4b7;
 
-  --success: #16a34a;
-  --success-muted: #f0fdf4;
-  --success-border: #bbf7d0;
+  --success: #4b7a4e; /* sage green — used only for real confirmations */
+  --success-hover: #3d6440;
+  --success-muted: #eaf2e7;
+  --success-border: #c9dec2;
 
-  --muted-foreground: #6b7280;
+  --warning: #8a6416;
+  --warning-hover: #74530f;
+  --warning-muted: #f7edd6;
+  --warning-border: #e3cd94;
+
+  --muted-foreground: #59536e;
+
+  /* Generation colors: every family member is tinted by how many
+   * generations they sit from "you". Always paired with an icon + text
+   * label in the UI — never the only signal — so this doubles as a
+   * colorblind-safe cue, not a requirement to read color. */
+  --gen-self: #5b4fd1; /* you — indigo, matches the primary brand color */
+  --gen-self-text: #4a3fb8;
+  --gen-peer: #a8615f; /* your generation: siblings, spouse, cousins — dusty rose */
+  --gen-peer-text: #8c4f4d;
+  --gen-up1: #4c6e8a; /* parents' generation — dusty blue */
+  --gen-up1-text: #3e5c74;
+  --gen-up2: #6b4f63; /* grandparents' generation and older — plum */
+  --gen-up2-text: #6b4f63;
+  --gen-down1: #5c7a5e; /* children's generation — sage */
+  --gen-down1-text: #4a6b4c;
+  --gen-down2: #a8791e; /* grandchildren's generation and younger — gold */
+  --gen-down2-text: #8a6416;
 }
 
 @theme inline {
@@ -36,7 +67,9 @@
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-muted: var(--primary-muted);
 
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
@@ -44,46 +77,95 @@
   --color-danger-border: var(--danger-border);
 
   --color-success: var(--success);
+  --color-success-hover: var(--success-hover);
   --color-success-muted: var(--success-muted);
   --color-success-border: var(--success-border);
 
+  --color-warning: var(--warning);
+  --color-warning-hover: var(--warning-hover);
+  --color-warning-muted: var(--warning-muted);
+  --color-warning-border: var(--warning-border);
+
   --color-muted-foreground: var(--muted-foreground);
 
-  --font-sans: var(--font-geist-sans);
+  --color-gen-self: var(--gen-self);
+  --color-gen-self-text: var(--gen-self-text);
+  --color-gen-peer: var(--gen-peer);
+  --color-gen-peer-text: var(--gen-peer-text);
+  --color-gen-up1: var(--gen-up1);
+  --color-gen-up1-text: var(--gen-up1-text);
+  --color-gen-up2: var(--gen-up2);
+  --color-gen-up2-text: var(--gen-up2-text);
+  --color-gen-down1: var(--gen-down1);
+  --color-gen-down1-text: var(--gen-down1-text);
+  --color-gen-down2: var(--gen-down2);
+  --color-gen-down2-text: var(--gen-down2-text);
+
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #f2f2f2;
-    --surface: #151517;
-    --surface-muted: #1c1c1f;
-    --border: #2a2a2e;
-    --border-strong: #3a3a3f;
-    --ring: #818cf8;
+    --background: #211d2e;
+    --foreground: #f2eefa;
+    --surface: #2a2440;
+    --surface-muted: #332c4d;
+    --border: #493f63;
+    --border-strong: #5c4f7d;
+    --ring: #8fb4ce;
 
-    --primary: #6366f1;
-    --primary-hover: #818cf8;
-    --primary-foreground: #ffffff;
+    --primary: #b8afff;
+    --primary-hover: #cbc4ff;
+    --primary-text: #b0a6ff;
+    --primary-foreground: #211640;
+    --primary-muted: #372f5c;
 
-    --danger: #f87171;
-    --danger-hover: #fca5a5;
-    --danger-muted: #2a1516;
-    --danger-border: #4c1d1d;
+    --danger: #e0796a;
+    --danger-hover: #ea9484;
+    --danger-muted: #3a1f17;
+    --danger-border: #5c3226;
 
-    --success: #4ade80;
-    --success-muted: #0f2417;
-    --success-border: #14532d;
+    --success: #9bc98e;
+    --success-hover: #b0d6a5;
+    --success-muted: #1e2e1b;
+    --success-border: #34462f;
 
-    --muted-foreground: #a1a1aa;
+    --warning: #e0b84e;
+    --warning-hover: #e8c876;
+    --warning-muted: #33290f;
+    --warning-border: #4d3f18;
+
+    --muted-foreground: #c4b29a;
+
+    --gen-self: #b8afff;
+    --gen-self-text: #b8afff;
+    --gen-peer: #e0a19e;
+    --gen-peer-text: #e0a19e;
+    --gen-up1: #8fb4ce;
+    --gen-up1-text: #8fb4ce;
+    --gen-up2: #c9a6bc;
+    --gen-up2-text: #c9a6bc;
+    --gen-down1: #9bc98e;
+    --gen-down1-text: #9bc98e;
+    --gen-down2: #e0b84e;
+    --gen-down2-text: #e0b84e;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-heading {
+  font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
 }
 
 a,
@@ -145,4 +227,39 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .animate-spin-slow {
   animation: spin-slow 0.6s linear infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease both;
+}
+
+.animate-rise-in {
+  animation: rise-in 220ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-rise-in {
+    animation: none;
+  }
 }

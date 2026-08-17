@@ -174,10 +174,10 @@ export function DateField({
         type="button"
         onClick={handleToggle}
         disabled={disabled}
-        className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border bg-surface px-3.5 py-2.5 text-left text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:opacity-60 ${
+        className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl border bg-surface px-4 py-3 text-left text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:bg-surface-muted disabled:opacity-60 ${
           error
             ? "border-danger-border focus:border-danger focus:ring-danger"
-            : "border-border focus:border-primary focus:ring-primary"
+            : "border-border focus:border-ring focus:ring-ring"
         }`}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -203,7 +203,7 @@ export function DateField({
         <div
           role="dialog"
           aria-label="Choose a date"
-          className={`absolute z-10 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface p-3 shadow-lg ${
+          className={`absolute z-10 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-3 shadow-lg ${
             openUpward ? "bottom-full mb-1" : "top-full mt-1"
           }`}
         >

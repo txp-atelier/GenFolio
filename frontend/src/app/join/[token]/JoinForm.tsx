@@ -35,7 +35,11 @@ export function JoinForm({ token }: { token: string }) {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setServerError(typeof data.detail === "string" ? data.detail : "Could not join");
+      setServerError(
+        typeof data.detail === "string"
+          ? data.detail
+          : "We couldn't add you to the family — please check your details and try again."
+      );
       return;
     }
 
@@ -67,7 +71,7 @@ export function JoinForm({ token }: { token: string }) {
       {serverError && <Alert variant="error">{serverError}</Alert>}
 
       <Button type="submit" loading={isSubmitting} className="w-full">
-        Join family
+        {isSubmitting ? "Joining the family…" : "Join family"}
       </Button>
     </form>
   );

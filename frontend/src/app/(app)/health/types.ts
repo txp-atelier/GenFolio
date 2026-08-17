@@ -13,3 +13,13 @@ export type HealthRecord = {
   visible_to_family: boolean;
   created_at: string;
 };
+
+export type HealthMatch = {
+  person_id: string;
+  first_name: string;
+  last_name: string;
+  sex: "male" | "female" | null;
+  age: number | null;
+  profile_picture_url: string | null;
+  match_percentage: number;
+};

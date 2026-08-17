@@ -37,7 +37,11 @@ export default function RegisterPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setServerError(typeof data.detail === "string" ? data.detail : "Registration failed");
+      setServerError(
+        typeof data.detail === "string"
+          ? data.detail
+          : "We couldn't create your family — please check your details and try again."
+      );
       return;
     }
 
@@ -84,7 +88,7 @@ export default function RegisterPage() {
           {serverError && <Alert variant="error">{serverError}</Alert>}
 
           <Button type="submit" loading={isSubmitting} className="w-full">
-            Create family
+            {isSubmitting ? "Creating your family…" : "Create family"}
           </Button>
         </form>
       </AuthCard>
