@@ -154,7 +154,6 @@ export function ProfileClient() {
             render={({ field }) => (
               <DateField
                 label="Date of birth"
-                hint="Optional"
                 value={field.value}
                 onChange={field.onChange}
                 maxDate={new Date()}
@@ -169,7 +168,6 @@ export function ProfileClient() {
             render={({ field }) => (
               <Dropdown
                 label="Gender"
-                hint="Optional"
                 options={SEX_OPTIONS}
                 value={field.value}
                 onChange={field.onChange}
@@ -183,7 +181,6 @@ export function ProfileClient() {
               label="Height (cm)"
               type="number"
               step="any"
-              hint="Optional"
               error={errors.height_cm?.message}
               {...register("height_cm")}
             />
@@ -191,7 +188,6 @@ export function ProfileClient() {
               label="Weight (kg)"
               type="number"
               step="any"
-              hint="Optional"
               error={errors.weight_kg?.message}
               {...register("weight_kg")}
             />
