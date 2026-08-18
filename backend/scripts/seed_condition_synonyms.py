@@ -28,6 +28,8 @@ SYNONYMS: dict[str, str] = {
     # Diabetes
     "sugar disease": "Type 2 Diabetes Mellitus",
     "diabetes": "Type 2 Diabetes Mellitus",
+    "diabetic": "Type 2 Diabetes Mellitus",
+    "diabetics": "Type 2 Diabetes Mellitus",
     "high sugar": "Type 2 Diabetes Mellitus",
     "high blood sugar": "Type 2 Diabetes Mellitus",
     "sugar problem": "Type 2 Diabetes Mellitus",

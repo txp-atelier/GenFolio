@@ -23,6 +23,7 @@ from app.services.health_record_service import (
     age_from_dob,
     create_health_record,
     delete_health_record,
+    describe_numeric_value,
     find_family_health_matches,
     get_family_health_snapshots,
     get_family_member,
@@ -34,6 +35,7 @@ from app.services.health_record_service import (
     search_family_by_health,
     update_health_record,
 )
+from app.services.rag_service import find_family_members_by_query
 from app.services.relationship_service import load_family_graph, load_family_persons
 
 router = APIRouter(prefix="/health-records", tags=["health-records"])
@@ -99,6 +101,13 @@ async def compare_with_family(
     ]
 
 
+def _describe_matched_record(category: str, value: dict) -> str:
+    if category in ("blood_sugar", "blood_pressure", "cholesterol"):
+        return describe_numeric_value(category, None, value)
+    name = value.get("name")
+    return str(name) if name else "Health note on record"
+
+
 @router.get("/search", response_model=HealthSearchResponse)
 async def search_by_health_query(
     q: str,
@@ -107,21 +116,54 @@ async def search_by_health_query(
 ) -> HealthSearchResponse:
     viewer = await _get_own_person(db, current_user)
     parsed = parse_health_query(q)
-    if parsed is None:
-        return HealthSearchResponse(recognized=False, results=[])
 
-    viewer_latest = latest_by_category(await list_health_records(db, viewer.id))
-    snapshots = await get_family_health_snapshots(db, viewer)
-
-    if parsed.relationship_keywords:
+    # A relationship word ("siblings with...", "who is bald" for a
+    # specific side of the family) narrows either path below the same way.
+    allowed_person_ids: set[uuid.UUID] | None = None
+    if parsed is not None and parsed.relationship_keywords:
         graph = await load_family_graph(db, viewer.family_id)
         persons = await load_family_persons(db, viewer.family_id)
         allowed_person_ids = person_ids_matching_relationship(
             graph, persons, viewer.id, parsed.relationship_keywords
         )
-        snapshots = [(person, latest) for person, latest in snapshots if person.id in allowed_person_ids]
 
-    matches = search_family_by_health(snapshots, parsed, viewer_latest)
+    if parsed is not None:
+        # An explicit vitals filter ("sugar level higher than 300", "high
+        # blood pressure") — exact, no embeddings involved.
+        viewer_latest = latest_by_category(await list_health_records(db, viewer.id))
+        snapshots = await get_family_health_snapshots(db, viewer)
+        if allowed_person_ids is not None:
+            snapshots = [(person, latest) for person, latest in snapshots if person.id in allowed_person_ids]
+
+        matches = search_family_by_health(snapshots, parsed, viewer_latest)
+        return HealthSearchResponse(
+            recognized=True,
+            results=[
+                HealthSearchResultOut(
+                    person_id=person.id,
+                    first_name=person.first_name,
+                    last_name=person.last_name,
+                    sex=person.sex,
+                    age=age_from_dob(person.dob),
+                    profile_picture_url=person.profile_picture_url,
+                    matched_value=matched_value,
+                )
+                for person, matched_value in matches
+            ],
+        )
+
+    # Anything else — free-text condition/disorder descriptions like
+    # "who is bald" or "diabetics" — goes through the same semantic
+    # retrieval the chat feature uses instead of a plain substring match,
+    # so colloquial phrasing (via condition-synonym expansion) and near-
+    # miss wording (via embedding similarity) both still find people. If
+    # nothing clears the relevance bar, recognized comes back false and the
+    # frontend falls back to its plain name filter.
+    semantic_matches = await find_family_members_by_query(
+        db, viewer, q, allowed_person_ids=allowed_person_ids, limit=10
+    )
+    if not semantic_matches:
+        return HealthSearchResponse(recognized=False, results=[])
 
     return HealthSearchResponse(
         recognized=True,
@@ -133,9 +175,9 @@ async def search_by_health_query(
                 sex=person.sex,
                 age=age_from_dob(person.dob),
                 profile_picture_url=person.profile_picture_url,
-                matched_value=matched_value,
+                matched_value=_describe_matched_record(record.category, record.value),
             )
-            for person, matched_value in matches
+            for person, record, _distance in semantic_matches
         ],
     )
 

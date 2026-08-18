@@ -34,7 +34,7 @@ export default async function TreePage({ searchParams }: PageProps<"/tree">) {
             {ego ? `${ego.first_name} ${ego.last_name}'s family tree` : "Your family tree"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Everyone connected to you, organized by generation.
+            Everyone connected to you, organized by generation — tap someone to see their report.
           </p>
         </div>
         {hasRelatives && (

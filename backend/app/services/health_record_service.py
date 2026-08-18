@@ -3,7 +3,6 @@ import re
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Literal
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -313,29 +312,84 @@ _COMPARATOR_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 _SELF_REFERENCE = re.compile(r"\bmy own\b|\bmyself\b|\bmine\b|\bme\b|\bmy\b")
 _NUMBER = re.compile(r"(\d+(?:\.\d+)?)")
 
-_STOPWORDS = {
-    "users", "user", "members", "member", "siblings", "sibling", "family", "with", "who",
-    "has", "have", "having", "the", "a", "an", "person", "people", "relatives", "relative",
-    "any", "someone", "anyone", "show", "find", "me", "my",
+# "high sugar" / "elevated blood pressure" / "low cholesterol" / "normal
+# blood sugar" — a category with no explicit number still says enough to
+# filter on, via a reasonable general-population reference point (not a
+# diagnostic threshold — framed purely as a descriptive filter, same spirit
+# as the chatbot's own "not a diagnosis" framing).
+_HIGH_QUALIFIER = re.compile(r"\bhigh\b|\bhigher\b|\belevated\b|\braised\b")
+_LOW_QUALIFIER = re.compile(r"\blow\b|\blower\b|\breduced\b")
+_NORMAL_QUALIFIER = re.compile(r"\bnormal\b|\bhealthy\b|\bregular\b")
+
+# gt/lt bound a single reading; "normal" is derived from the same two
+# numbers as the range between them, not a separate reference point.
+_DEFAULT_QUALIFIER_THRESHOLD: dict[tuple[str, str | None], dict[str, float]] = {
+    ("blood_sugar", None): {"gt": 125.0, "lt": 70.0},
+    ("blood_pressure", "systolic"): {"gt": 130.0, "lt": 90.0},
+    ("blood_pressure", "diastolic"): {"gt": 80.0, "lt": 60.0},
+    ("cholesterol", "total"): {"gt": 200.0, "lt": 120.0},
+    ("cholesterol", "ldl"): {"gt": 130.0, "lt": 40.0},
+    ("cholesterol", "hdl"): {"gt": 60.0, "lt": 40.0},
+    ("cholesterol", "triglycerides"): {"gt": 150.0, "lt": 50.0},
 }
 
-# Without one of these, plain text (e.g. someone's name typed into the same
-# search box) would otherwise fall through and get misread as a condition
-# search term.
-_CONDITION_SIGNAL = re.compile(
-    r"\bwith\b|\bhas\b|\bhave\b|\bhaving\b|\bcondition\b|\bdisorder\b|\bdiagnos\w*\b|\bsuffering\b"
-)
+# Whether the query named a specific BP number explicitly ("systolic"/
+# "diastolic") — without one, "high"/"low"/"normal" blood pressure checks
+# both readings rather than just the default (systolic), since e.g. 125/95
+# would misleadingly count as "normal" on systolic alone.
+_EXPLICIT_BP_FIELD = re.compile(r"\bsystolic\b|\bdiastolic\b")
+
+
+def _match_qualifier(query: str) -> str | None:
+    if _NORMAL_QUALIFIER.search(query):
+        return "normal"
+    if _HIGH_QUALIFIER.search(query):
+        return "gt"
+    if _LOW_QUALIFIER.search(query):
+        return "lt"
+    return None
+
+
+def _bp_pair(record: HealthRecord) -> tuple[float, float] | None:
+    try:
+        return float(record.value["systolic"]), float(record.value["diastolic"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _matches_bp_qualifier(operator: str, systolic: float, diastolic: float) -> bool:
+    sys_range = _DEFAULT_QUALIFIER_THRESHOLD[("blood_pressure", "systolic")]
+    dia_range = _DEFAULT_QUALIFIER_THRESHOLD[("blood_pressure", "diastolic")]
+    if operator == "gt":
+        return systolic > sys_range["gt"] or diastolic > dia_range["gt"]
+    if operator == "lt":
+        return systolic < sys_range["lt"] or diastolic < dia_range["lt"]
+    if operator == "normal":
+        return sys_range["lt"] <= systolic <= sys_range["gt"] and dia_range["lt"] <= diastolic <= dia_range["gt"]
+    return False
 
 
 @dataclass(frozen=True)
 class ParsedHealthQuery:
-    kind: Literal["numeric", "condition"]
-    category: str | None = None
+    """A search-box query recognized as an explicit vitals filter (a
+    category, plus either a number/qualifier or "than mine"). Anything else
+    — including free-text condition descriptions like "who is bald" — isn't
+    handled here at all; parse_health_query returns None for those, and the
+    caller (search_by_health_query) sends the raw query to semantic
+    retrieval instead (see rag_service.find_family_members_by_query)."""
+
+    category: str
     field: str | None = None
-    operator: str | None = None
+    operator: str = "gt"  # "gt" | "lt" | "eq" | "normal"
     threshold: float | None = None
+    # Only set when operator == "normal": the upper bound of the range
+    # (threshold is the lower bound in that case).
+    range_high: float | None = None
     use_own_value: bool = False
-    term: str | None = None
+    # True for an unqualified "high/low/normal blood pressure" (no
+    # "systolic"/"diastolic" named) — checked against both readings at once
+    # rather than just the default (systolic) field.
+    both_bp_fields: bool = False
     # Substrings to match against each candidate's relationship label from
     # relationship_service.describe_blood_relation (e.g. "sister",
     # "grandfather", "2nd cousin, once removed") — so "siblings with sugar
@@ -397,17 +451,21 @@ def person_ids_matching_relationship(
     }
 
 
-def _extract_condition_term(query: str) -> str:
-    words = re.findall(r"[a-zA-Z]+", query.lower())
-    meaningful = [w for w in words if w not in _STOPWORDS]
-    return " ".join(meaningful).strip()
+def _default_field_for(category: str) -> str | None:
+    if category == "blood_pressure":
+        return "systolic"
+    if category == "cholesterol":
+        return "total"
+    return None
 
 
 def parse_health_query(query: str) -> ParsedHealthQuery | None:
-    """Best-effort parse of a search-box query into a health-criteria
-    filter. Returns None when the text doesn't look like a health query at
-    all (e.g. it's just someone's name), so the caller can fall back to
-    plain name search instead of showing "no results"."""
+    """Recognizes an explicit vitals filter — a category name plus either a
+    number, a "than mine" self-reference, or a high/low qualifier with an
+    implied default threshold. Returns None for everything else (plain
+    names, and free-text condition descriptions like "who is bald" or
+    "diabetics" alike) — the caller treats None as a signal to try semantic
+    retrieval instead, not to give up."""
     q = query.lower().strip()
     if not q:
         return None
@@ -419,44 +477,68 @@ def parse_health_query(query: str) -> ParsedHealthQuery | None:
         if pattern.search(q):
             category, field = cat, fld
             break
+    if category is None:
+        return None
 
-    if category is not None:
-        operator = None
-        for pattern, op in _COMPARATOR_PATTERNS:
-            if pattern.search(q):
-                operator = op
-                break
-        if operator is None:
-            return None
+    operator = None
+    for pattern, op in _COMPARATOR_PATTERNS:
+        if pattern.search(q):
+            operator = op
+            break
 
+    if operator is not None:
         if _SELF_REFERENCE.search(q):
             return ParsedHealthQuery(
-                kind="numeric",
                 category=category,
                 field=field,
                 operator=operator,
                 use_own_value=True,
                 relationship_keywords=relationship_keywords,
             )
-
         number_match = _NUMBER.search(q)
-        if not number_match:
-            return None
-        return ParsedHealthQuery(
-            kind="numeric",
-            category=category,
-            field=field,
-            operator=operator,
-            threshold=float(number_match.group(1)),
-            relationship_keywords=relationship_keywords,
-        )
+        if number_match:
+            return ParsedHealthQuery(
+                category=category,
+                field=field,
+                operator=operator,
+                threshold=float(number_match.group(1)),
+                relationship_keywords=relationship_keywords,
+            )
+        # An explicit comparator with no number or "mine" to compare
+        # against ("sugar level higher than...?") isn't a usable filter —
+        # fall through to the qualifier check below rather than guessing.
 
-    if not _CONDITION_SIGNAL.search(q):
-        return None
-    term = _extract_condition_term(q)
-    if not term:
-        return None
-    return ParsedHealthQuery(kind="condition", term=term, relationship_keywords=relationship_keywords)
+    qualifier = _match_qualifier(q)
+    if qualifier is not None:
+        if category == "blood_pressure" and not _EXPLICIT_BP_FIELD.search(q):
+            return ParsedHealthQuery(
+                category=category,
+                operator=qualifier,
+                both_bp_fields=True,
+                relationship_keywords=relationship_keywords,
+            )
+
+        thresholds = _DEFAULT_QUALIFIER_THRESHOLD.get((category, field or _default_field_for(category)))
+        if thresholds:
+            if qualifier == "normal":
+                return ParsedHealthQuery(
+                    category=category,
+                    field=field,
+                    operator="normal",
+                    threshold=thresholds["lt"],
+                    range_high=thresholds["gt"],
+                    relationship_keywords=relationship_keywords,
+                )
+            if qualifier in thresholds:
+                return ParsedHealthQuery(
+                    category=category,
+                    field=field,
+                    operator=qualifier,
+                    threshold=thresholds[qualifier],
+                    relationship_keywords=relationship_keywords,
+                )
+
+    return None
 
 
 def _numeric_field_value(record: HealthRecord, category: str, field: str | None) -> float | None:
@@ -484,7 +566,7 @@ def _compare(operator: str, actual: float, threshold: float) -> bool:
     return abs(actual - threshold) <= max(1.0, threshold * 0.02)
 
 
-def _describe_numeric_value(category: str, field: str | None, value: dict) -> str:
+def describe_numeric_value(category: str, field: str | None, value: dict) -> str:
     if category == "blood_sugar":
         return f"{value.get('value')} {value.get('unit') or 'mg/dL'}"
     if category == "blood_pressure":
@@ -500,22 +582,31 @@ def search_family_by_health(
     parsed: ParsedHealthQuery,
     viewer_latest: dict[str, HealthRecord],
 ) -> list[tuple[Person, str]]:
-    """Applies a parsed query to a family's health snapshots (as returned by
-    get_family_health_snapshots), returning (person, human-readable matched
-    value) pairs for everyone who matches."""
-    if parsed.kind == "numeric":
-        threshold = parsed.threshold
-        if parsed.use_own_value:
-            own_record = viewer_latest.get(parsed.category)
-            threshold = (
-                _numeric_field_value(own_record, parsed.category, parsed.field)
-                if own_record is not None
-                else None
-            )
-        if threshold is None:
-            return []
-
+    """Applies a parsed vitals filter to a family's health snapshots (as
+    returned by get_family_health_snapshots), returning (person,
+    human-readable matched value) pairs for everyone who matches. Free-text
+    condition queries ("who is bald") never reach here — parse_health_query
+    returns None for those, and the caller uses semantic retrieval instead
+    (see rag_service.find_family_members_by_query)."""
+    if parsed.both_bp_fields:
         matches: list[tuple[Person, str]] = []
+        for person, latest in snapshots:
+            record = latest.get("blood_pressure")
+            if record is None:
+                continue
+            pair = _bp_pair(record)
+            if pair is None:
+                continue
+            systolic, diastolic = pair
+            if _matches_bp_qualifier(parsed.operator, systolic, diastolic):
+                matches.append((person, describe_numeric_value("blood_pressure", None, record.value)))
+        return matches
+
+    if parsed.operator == "normal":
+        low, high = parsed.threshold, parsed.range_high
+        if low is None or high is None:
+            return []
+        matches = []
         for person, latest in snapshots:
             record = latest.get(parsed.category)
             if record is None:
@@ -523,20 +614,27 @@ def search_family_by_health(
             actual = _numeric_field_value(record, parsed.category, parsed.field)
             if actual is None:
                 continue
-            if _compare(parsed.operator, actual, threshold):
-                matches.append((person, _describe_numeric_value(parsed.category, parsed.field, record.value)))
+            if low <= actual <= high:
+                matches.append((person, describe_numeric_value(parsed.category, parsed.field, record.value)))
         return matches
 
-    term = (parsed.term or "").lower()
+    threshold = parsed.threshold
+    if parsed.use_own_value:
+        own_record = viewer_latest.get(parsed.category)
+        threshold = (
+            _numeric_field_value(own_record, parsed.category, parsed.field) if own_record is not None else None
+        )
+    if threshold is None:
+        return []
+
     matches = []
     for person, latest in snapshots:
-        for category in ("other", "condition"):
-            record = latest.get(category)
-            if record is None:
-                continue
-            name = str(record.value.get("name", "")).lower()
-            notes = str(record.value.get("notes", "")).lower()
-            if term in name or term in notes:
-                matches.append((person, str(record.value.get("name")) or "Condition on record"))
-                break
+        record = latest.get(parsed.category)
+        if record is None:
+            continue
+        actual = _numeric_field_value(record, parsed.category, parsed.field)
+        if actual is None:
+            continue
+        if _compare(parsed.operator, actual, threshold):
+            matches.append((person, describe_numeric_value(parsed.category, parsed.field, record.value)))
     return matches

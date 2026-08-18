@@ -130,7 +130,6 @@ def _person(first_name: str) -> Person:
 def test_parse_health_query_numeric_threshold():
     parsed = parse_health_query("siblings with sugar level higher than 300")
     assert parsed is not None
-    assert parsed.kind == "numeric"
     assert parsed.category == "blood_sugar"
     assert parsed.operator == "gt"
     assert parsed.threshold == 300
@@ -140,7 +139,6 @@ def test_parse_health_query_numeric_threshold():
 def test_parse_health_query_compared_to_me():
     parsed = parse_health_query("members with sugar level higher than me")
     assert parsed is not None
-    assert parsed.kind == "numeric"
     assert parsed.category == "blood_sugar"
     assert parsed.operator == "gt"
     assert parsed.use_own_value is True
@@ -165,20 +163,61 @@ def test_parse_health_query_cholesterol_subfield():
     assert parsed.threshold == 160
 
 
-def test_parse_health_query_condition_fallback():
-    parsed = parse_health_query("members with diabetes")
+def test_parse_health_query_high_qualifier_uses_default_threshold():
+    # "high sugar" has no explicit number/comparator, but "high" alone
+    # should still resolve to a usable filter via a built-in reference point.
+    parsed = parse_health_query("who has high sugar level")
     assert parsed is not None
-    assert parsed.kind == "condition"
-    assert parsed.term == "diabetes"
+    assert parsed.category == "blood_sugar"
+    assert parsed.operator == "gt"
+    assert parsed.threshold == 125.0
+
+
+def test_parse_health_query_low_qualifier_blood_pressure_checks_both_fields():
+    # No "systolic"/"diastolic" named, so this checks both readings rather
+    # than defaulting to systolic alone (see both_bp_fields).
+    parsed = parse_health_query("who has low blood pressure")
+    assert parsed is not None
+    assert parsed.category == "blood_pressure"
+    assert parsed.operator == "lt"
+    assert parsed.both_bp_fields is True
+
+
+def test_parse_health_query_explicit_bp_field_still_single_field():
+    parsed = parse_health_query("who has high diastolic")
+    assert parsed is not None
+    assert parsed.category == "blood_pressure"
+    assert parsed.field == "diastolic"
+    assert parsed.operator == "gt"
+    assert parsed.both_bp_fields is False
+    assert parsed.threshold == 80.0
+
+
+def test_parse_health_query_normal_qualifier_uses_range():
+    parsed = parse_health_query("who has normal sugar level")
+    assert parsed is not None
+    assert parsed.category == "blood_sugar"
+    assert parsed.operator == "normal"
+    assert parsed.threshold == 70.0
+    assert parsed.range_high == 125.0
+
+
+def test_parse_health_query_condition_description_is_unrecognized():
+    # Free-text disorder descriptions aren't parsed as a vitals filter at
+    # all — the caller is expected to route these through semantic search
+    # (rag_service.find_family_members_by_query) instead.
+    assert parse_health_query("who is bald") is None
+    assert parse_health_query("baldness") is None
+    assert parse_health_query("members with diabetes") is None
 
 
 def test_parse_health_query_plain_name_is_unrecognized():
     assert parse_health_query("John Smith") is None
 
 
-def test_parse_health_query_category_without_comparator_is_unrecognized():
-    # A bare category keyword without a comparator isn't a confident
-    # numeric filter, so it's treated as unrecognized rather than guessed at.
+def test_parse_health_query_category_without_comparator_or_qualifier_is_unrecognized():
+    # A bare category keyword alone isn't a confident numeric filter, so
+    # it's treated as unrecognized rather than guessed at.
     assert parse_health_query("cholesterol") is None
 
 
@@ -209,13 +248,57 @@ def test_search_family_by_health_compares_to_viewer_value():
     assert [p.first_name for p, _ in matches] == ["Alice"]
 
 
-def test_search_family_by_health_condition_term_matches_name_or_notes():
-    alice, bob = _person("Alice"), _person("Bob")
+def test_search_family_by_health_high_bp_checks_both_readings():
+    # 180/120 is unambiguously high on both numbers; 125/95 is "normal" on
+    # systolic alone but has an elevated diastolic — both must be flagged.
+    hypertensive_crisis = _person("Alice")
+    borderline_diastolic = _person("Carol")
+    normal = _person("Bob")
     snapshots = [
-        (alice, {"other": _record("other", {"name": "Type 2 Diabetes", "notes": ""})}),
-        (bob, {"other": _record("other", {"name": "Eczema", "notes": ""})}),
+        (
+            hypertensive_crisis,
+            {"blood_pressure": _record("blood_pressure", {"systolic": 180, "diastolic": 120})},
+        ),
+        (
+            borderline_diastolic,
+            {"blood_pressure": _record("blood_pressure", {"systolic": 125, "diastolic": 95})},
+        ),
+        (normal, {"blood_pressure": _record("blood_pressure", {"systolic": 118, "diastolic": 76})}),
     ]
-    parsed = parse_health_query("members with diabetes")
+    parsed = parse_health_query("who has high blood pressure")
+
+    matches = search_family_by_health(snapshots, parsed, viewer_latest={})
+
+    assert {p.first_name for p, _ in matches} == {"Alice", "Carol"}
+
+
+def test_search_family_by_health_normal_bp_excludes_partial_elevation():
+    normal = _person("Bob")
+    borderline_diastolic = _person("Carol")
+    snapshots = [
+        (normal, {"blood_pressure": _record("blood_pressure", {"systolic": 118, "diastolic": 76})}),
+        (
+            borderline_diastolic,
+            {"blood_pressure": _record("blood_pressure", {"systolic": 125, "diastolic": 95})},
+        ),
+    ]
+    parsed = parse_health_query("who has normal blood pressure")
+
+    matches = search_family_by_health(snapshots, parsed, viewer_latest={})
+
+    assert [p.first_name for p, _ in matches] == ["Bob"]
+
+
+def test_search_family_by_health_normal_sugar_uses_range():
+    in_range = _person("Alice")
+    too_high = _person("Bob")
+    too_low = _person("Carol")
+    snapshots = [
+        (in_range, {"blood_sugar": _record("blood_sugar", {"value": 90, "unit": "mg/dL"})}),
+        (too_high, {"blood_sugar": _record("blood_sugar", {"value": 200, "unit": "mg/dL"})}),
+        (too_low, {"blood_sugar": _record("blood_sugar", {"value": 55, "unit": "mg/dL"})}),
+    ]
+    parsed = parse_health_query("who has normal sugar level")
 
     matches = search_family_by_health(snapshots, parsed, viewer_latest={})
 

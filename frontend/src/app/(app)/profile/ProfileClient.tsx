@@ -230,10 +230,7 @@ export function ProfileClient() {
         </div>
         <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
           <li>Only people you&apos;ve added to your family tree can see your profile and photo.</li>
-          <li>
-            Health details you log stay private to you by default — you choose what to share when you
-            save a health report.
-          </li>
+          <li>Health details are shared with your family by default — turn off sharing on your health report any time.</li>
           <li>Invite links only work once, and stop working after 7 days if no one uses them.</li>
         </ul>
       </Card>

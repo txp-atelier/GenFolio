@@ -1,25 +1,27 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------
- * GenFolio design tokens — a warm "heritage" palette instead of a flat
- * IDE-style black/white/gray + single accent. Every pair below has been
+ * GenFolio design tokens — a clinical-clean palette: light cream (the
+ * white coat) plus sky/scrub blue (the operating-theatre blue), instead
+ * of a flat IDE-style black/white/gray + single accent. 60% cream, 30%
+ * cream-adjacent structure, 10% blue accent. Every pair below has been
  * checked against WCAG AA (4.5:1 for body text, 3:1 for large text/icons
  * and focus indicators). See docs/style-guide for the source numbers.
  * ------------------------------------------------------------------- */
 :root {
-  --background: #fff0e1; /* oat */
-  --foreground: #2a2740; /* deep indigo-charcoal, not pure black */
+  --background: #f8f5ec; /* cream — the white coat, 60% */
+  --foreground: #1f2a33; /* deep navy-charcoal, not pure black */
   --surface: #ffffff;
-  --surface-muted: #f7e9d8; /* warm oat-tan */
-  --border: #ead9be;
-  --border-strong: #d8be93;
-  --ring: #3e5c74; /* dusty blue — kept distinct from the primary color so focus is always unmistakable */
+  --surface-muted: #eaf2f7; /* pale sky-blue tint */
+  --border: #d8e6ee;
+  --border-strong: #b9d3e0;
+  --ring: #0f5178; /* deep scrub blue — a clearly darker step than --primary so a focus ring is always unmistakable against a filled button */
 
-  --primary: #5b4fd1; /* indigo */
-  --primary-hover: #4a3fb8;
-  --primary-text: #4a3fb8; /* for text/links on light backgrounds — darker than the fill so it still clears 4.5:1 */
+  --primary: #146897; /* sky/scrub blue — the operating-theatre blue */
+  --primary-hover: #0f5178;
+  --primary-text: #0f5178; /* for text/links on light backgrounds — darker than the fill so it still clears 4.5:1 */
   --primary-foreground: #ffffff;
-  --primary-muted: #c8c3ff; /* the pale indigo tint — chip/badge backgrounds, paired with --primary-text */
+  --primary-muted: #bfe0f0; /* the pale sky tint — chip/badge backgrounds, paired with --primary-text */
 
   --danger: #b23b2e; /* brick red — warmer than a raw dev-console red, still unmistakably "error" */
   --danger-hover: #97301f;
@@ -36,22 +38,25 @@
   --warning-muted: #f7edd6;
   --warning-border: #e3cd94;
 
-  --muted-foreground: #59536e;
+  --muted-foreground: #4e5f70;
 
-  /* Generation colors: every family member is tinted by how many
-   * generations they sit from "you". Always paired with an icon + text
-   * label in the UI — never the only signal — so this doubles as a
-   * colorblind-safe cue, not a requirement to read color. */
-  --gen-self: #5b4fd1; /* you — indigo, matches the primary brand color */
-  --gen-self-text: #4a3fb8;
-  --gen-peer: #a8615f; /* your generation: siblings, spouse, cousins — dusty rose */
-  --gen-peer-text: #8c4f4d;
-  --gen-up1: #4c6e8a; /* parents' generation — dusty blue */
-  --gen-up1-text: #3e5c74;
-  --gen-up2: #6b4f63; /* grandparents' generation and older — plum */
+  /* Generation colors: the tree specifically is allowed a fuller palette
+   * beyond the brand's cream + blue (per direct instruction) — a real
+   * hue per generation reads faster than shades of one color. "Self"
+   * still matches the primary brand blue; the rest map to the same
+   * concepts as before (root/care/love/health). Always paired with an
+   * icon + text label in the UI — never the only signal — so this
+   * doubles as a colorblind-safe cue, not a requirement to read color. */
+  --gen-self: #146897; /* you — matches the primary brand color */
+  --gen-self-text: #0f5178;
+  --gen-peer: #8f4f4d; /* your generation: siblings, spouse, cousins — dusty rose (love) */
+  --gen-peer-text: #8f4f4d;
+  --gen-up1: #4c6e8a; /* parents' generation — dusty blue (care) */
+  --gen-up1-text: #4c6e8a;
+  --gen-up2: #6b4f63; /* grandparents' generation and older — plum (root) */
   --gen-up2-text: #6b4f63;
-  --gen-down1: #5c7a5e; /* children's generation — sage */
-  --gen-down1-text: #4a6b4c;
+  --gen-down1: #4e6850; /* children's generation — sage (health) */
+  --gen-down1-text: #4e6850;
   --gen-down2: #a8791e; /* grandchildren's generation and younger — gold */
   --gen-down2-text: #8a6416;
 }
@@ -108,19 +113,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #211d2e;
-    --foreground: #f2eefa;
-    --surface: #2a2440;
-    --surface-muted: #332c4d;
-    --border: #493f63;
-    --border-strong: #5c4f7d;
-    --ring: #8fb4ce;
+    --background: #182430;
+    --foreground: #eef3f6;
+    --surface: #1f2f3d;
+    --surface-muted: #263c4d;
+    --border: #3a5266;
+    --border-strong: #4a6981;
 
-    --primary: #b8afff;
-    --primary-hover: #cbc4ff;
-    --primary-text: #b0a6ff;
-    --primary-foreground: #211640;
-    --primary-muted: #372f5c;
+    --primary: #7fc4e8;
+    --primary-hover: #9ed4ef;
+    --primary-text: #7fc4e8;
+    --primary-foreground: #0b2e42;
+    --primary-muted: #24475c;
+    --ring: #7fc4e8;
 
     --danger: #e0796a;
     --danger-hover: #ea9484;
@@ -137,10 +142,10 @@
     --warning-muted: #33290f;
     --warning-border: #4d3f18;
 
-    --muted-foreground: #c4b29a;
+    --muted-foreground: #b7c6d1;
 
-    --gen-self: #b8afff;
-    --gen-self-text: #b8afff;
+    --gen-self: #7fc4e8;
+    --gen-self-text: #7fc4e8;
     --gen-peer: #e0a19e;
     --gen-peer-text: #e0a19e;
     --gen-up1: #8fb4ce;

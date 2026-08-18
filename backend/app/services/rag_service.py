@@ -120,6 +120,83 @@ async def _drop_private_records(
     return filtered
 
 
+async def find_family_members_by_query(
+    db: AsyncSession,
+    viewer: Person,
+    query: str,
+    allowed_person_ids: set[uuid.UUID] | None = None,
+    limit: int = 10,
+) -> list[tuple[Person, HealthRecord, float]]:
+    """Semantic counterpart to health_record_service.search_family_by_health
+    (the explicit category+threshold filter) — for free-text descriptions
+    like "who is bald" or "diabetics" that don't parse as one. Reuses the
+    same retrieval pipeline as the chat feature (normalize_query + vector
+    similarity + a privacy re-check against the source of truth), just
+    returning matching people instead of a generated answer.
+
+    Unlike chat, this isn't restricted to blood relatives — search already
+    surfaces spouses/in-laws elsewhere (compare, relationship-keyword
+    filters), so it stays consistent with that rather than narrowing.
+    `allowed_person_ids`, when given, narrows further still (e.g. a
+    "siblings who..." query already resolved to a specific set of people).
+    """
+    persons = await load_family_persons(db, viewer.family_id)
+    candidate_ids = [pid for pid in persons if pid != viewer.id]
+    if allowed_person_ids is not None:
+        candidate_ids = [pid for pid in candidate_ids if pid in allowed_person_ids]
+    if not candidate_ids:
+        return []
+
+    query_text = await normalize_query(db, query)
+
+    vector_store = get_vector_store()
+    raw_results = await vector_store.asimilarity_search_with_score(
+        query_text,
+        k=settings.rag_top_k,
+        filter={
+            "family_id": {"$eq": str(viewer.family_id)},
+            "person_id": {"$in": [str(pid) for pid in candidate_ids]},
+        },
+    )
+
+    source_ids: list[uuid.UUID] = []
+    for doc, _distance in raw_results:
+        try:
+            source_ids.append(uuid.UUID(doc.metadata["source_id"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+    if not source_ids:
+        return []
+
+    rows = await db.execute(select(HealthRecord).where(HealthRecord.id.in_(source_ids)))
+    records_by_id = {record.id: record for record in rows.scalars().all()}
+
+    best_by_person: dict[uuid.UUID, tuple[HealthRecord, float]] = {}
+    for doc, distance in raw_results:
+        if distance > settings.rag_max_distance:
+            continue
+        try:
+            record_id = uuid.UUID(doc.metadata["source_id"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        record = records_by_id.get(record_id)
+        # Re-checked against the source of truth, not embedding metadata —
+        # a record can be deleted or toggled private after it was embedded.
+        if record is None or not record.visible_to_family:
+            continue
+        current = best_by_person.get(record.person_id)
+        if current is None or distance < current[1]:
+            best_by_person[record.person_id] = (record, distance)
+
+    matches = [
+        (persons[person_id], record, distance)
+        for person_id, (record, distance) in best_by_person.items()
+        if person_id in persons
+    ]
+    matches.sort(key=lambda item: item[2])
+    return matches[:limit]
+
+
 async def generate_answer(question: str, context_items: list[dict]) -> str:
     if context_items:
         context_text = "\n".join(

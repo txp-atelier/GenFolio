@@ -22,7 +22,7 @@ export default async function SearchPage() {
       <div>
         <h1 className="font-heading text-xl font-bold text-foreground">Find someone</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Search your family by name — we&apos;ll take you straight to them on the tree.
+          Search by name, or by health detail — try &quot;high blood sugar&quot; or &quot;who is bald&quot;.
         </p>
       </div>
       <SearchClient persons={graph.persons} egoPersonId={graph.ego_person_id} />

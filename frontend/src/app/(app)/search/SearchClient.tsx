@@ -31,13 +31,6 @@ type HealthSearchResult = {
   matched_value: string;
 };
 
-// Just decides whether it's worth asking the backend to parse the query as
-// a health-criteria filter — loose on purpose, since a false positive only
-// costs one extra request that comes back `recognized: false` and falls
-// straight through to the plain name filter below.
-const HEALTH_QUERY_HINT =
-  /\d|sugar|glucose|blood\s*pressure|\bbp\b|cholesterol|\bldl\b|\bhdl\b|triglyceride|systolic|diastolic|higher|greater|lower|less than|more than|\babove\b|\bbelow\b|\bover\b|\bunder\b|\bequal\b|condition|disorder|diagnos|suffering/i;
-
 const rowClass =
   "flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left text-sm shadow-sm transition-colors hover:bg-surface-muted";
 
@@ -58,7 +51,13 @@ export function SearchClient({ persons, egoPersonId }: Props) {
   }, [searchable, query]);
 
   const trimmedQuery = query.trim();
-  const isHealthMode = trimmedQuery.length >= 3 && HEALTH_QUERY_HINT.test(trimmedQuery);
+  // No keyword pre-filter — every query past a minimum length gets a shot
+  // at the backend's health search (an explicit vitals filter, or semantic
+  // retrieval for free-text like "who is bald"). A query with no real
+  // health content just comes back `recognized: false` and falls straight
+  // through to the plain name filter below, so there's nothing to lose by
+  // always trying.
+  const isHealthMode = trimmedQuery.length >= 3;
 
   // Deferred entirely into the debounce timeout below (never called
   // synchronously in the effect body) so this never fires a state update on
@@ -110,7 +109,7 @@ export function SearchClient({ persons, egoPersonId }: Props) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder='Type a name, or try "siblings with sugar level higher than 300"…'
+          placeholder='Type a name, or try "who has high blood sugar" or "who is bald"…'
           aria-label="Search your family by name or health details"
           autoFocus
           className={inputClass(false, "pl-11")}
