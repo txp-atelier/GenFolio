@@ -341,7 +341,24 @@ async def connect_new_member(
             await _add_parent_edge(db, family_id, spouse_id, new_person_id)
 
     elif relationship_to_inviter == "parent":
+        # Mirror the "spouse" and "child" branches above: a 2nd parent
+        # joining shouldn't just link to the inviter — they should also
+        # become a spouse of any parent already on record, and a parent of
+        # any existing children of that parent (i.e. the inviter's
+        # siblings), so a sibling who joined before this parent did doesn't
+        # end up connected to only one of their two parents.
+        existing_parent_ids = await find_parent_ids(db, inviter_person_id)
         await _add_parent_edge(db, family_id, new_person_id, inviter_person_id)
+        for other_parent_id in existing_parent_ids:
+            # If new_person_id is claiming an unclaimed placeholder parent
+            # (see find_claimable_parent) that's already this same row, skip
+            # it — it can't be its own spouse.
+            if other_parent_id == new_person_id:
+                continue
+            await _add_spouse_edge(db, family_id, new_person_id, other_parent_id)
+            for sibling_id in await find_child_ids(db, other_parent_id):
+                if sibling_id != inviter_person_id:
+                    await _add_parent_edge(db, family_id, new_person_id, sibling_id)
 
     elif relationship_to_inviter == "sibling":
         existing_parent_ids = await find_parent_ids(db, inviter_person_id)
