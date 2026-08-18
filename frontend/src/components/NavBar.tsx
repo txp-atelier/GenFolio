@@ -23,6 +23,7 @@ const MOBILE_TABS = [
   { href: "/dashboard", label: "Home", icon: HomeIcon },
   { href: "/tree", label: "My Tree", icon: TreeIcon },
   { href: "/add", label: "Add", icon: AddPersonIcon, emphasized: true },
+  { href: "/health", label: "Health", icon: HeartPulseIcon },
   { href: "/search", label: "Search", icon: SearchIcon },
 ];
 

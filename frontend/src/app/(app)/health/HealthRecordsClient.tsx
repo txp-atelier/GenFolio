@@ -51,7 +51,7 @@ export function HealthRecordsClient() {
         type="button"
         aria-label="Open family health chat"
         onClick={() => setChatOpen(true)}
-        className="fixed right-5 bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover lg:hidden"
+        className="fixed right-5 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover sm:bottom-5 lg:hidden"
       >
         <ChatIcon width={24} height={24} />
       </button>

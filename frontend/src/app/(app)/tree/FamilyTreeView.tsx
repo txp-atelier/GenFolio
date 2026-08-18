@@ -110,61 +110,63 @@ export function FamilyTreeView({ persons, egoPersonId, focusPersonId }: Props) {
       )}
 
       <div ref={scrollRef} className="custom-scrollbar overflow-auto rounded-3xl border border-border bg-surface p-6 shadow-sm">
-        <div className="flex min-w-full justify-center">
-          <div className="relative shrink-0" style={{ width: canvasWidth, height: canvasHeight }}>
-            <svg className="pointer-events-none absolute inset-0" width={canvasWidth} height={canvasHeight}>
-              {layout.connectors.map(([x1, y1, x2, y2], i) => (
-                <line
-                  key={i}
-                  x1={gridToPxX(x1)}
-                  y1={gridToPxY(y1)}
-                  x2={gridToPxX(x2)}
-                  y2={gridToPxY(y2)}
-                  stroke="var(--border-strong)"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                />
-              ))}
-            </svg>
+        {/* mx-auto (not flex justify-center) so that when the tree is wider
+            than the viewport, it sits flush at the left edge instead of
+            centering into phantom scrollable blank space on both sides —
+            centering only happens when the tree actually fits. */}
+        <div className="relative mx-auto" style={{ width: canvasWidth, height: canvasHeight }}>
+          <svg className="pointer-events-none absolute inset-0" width={canvasWidth} height={canvasHeight}>
+            {layout.connectors.map(([x1, y1, x2, y2], i) => (
+              <line
+                key={i}
+                x1={gridToPxX(x1)}
+                y1={gridToPxY(y1)}
+                x2={gridToPxX(x2)}
+                y2={gridToPxY(y2)}
+                stroke="var(--border-strong)"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+              />
+            ))}
+          </svg>
 
-            {layout.nodes.map((node) => {
-              const person = byId.get(node.id);
-              const bucket = person
-                ? bucketForDepth(depths.get(person.person_id) ?? 0, person.is_self)
-                : null;
-              return (
-                <div
-                  key={node.id}
-                  ref={(el) => {
-                    if (el) nodeRefs.current.set(node.id, el);
-                    else nodeRefs.current.delete(node.id);
-                  }}
-                  className="absolute"
-                  style={{
-                    left: gridToPxX(node.left) + CARD_INSET,
-                    top: gridToPxY(node.top) + CARD_INSET,
-                    width: NODE_CELL_WIDTH - CARD_INSET * 2,
-                    height: NODE_CELL_HEIGHT - CARD_INSET * 2,
-                  }}
-                >
-                  {person ? (
-                    person.is_claimed ? (
-                      <PersonCard
-                        person={person}
-                        bucket={bucket!}
-                        highlighted={highlighted === node.id}
-                        onOpenReport={setSelectedPersonId}
-                      />
-                    ) : (
-                      <UnknownPersonCard />
-                    )
-                  ) : isUnknownPartnerId(node.id) ? (
+          {layout.nodes.map((node) => {
+            const person = byId.get(node.id);
+            const bucket = person
+              ? bucketForDepth(depths.get(person.person_id) ?? 0, person.is_self)
+              : null;
+            return (
+              <div
+                key={node.id}
+                ref={(el) => {
+                  if (el) nodeRefs.current.set(node.id, el);
+                  else nodeRefs.current.delete(node.id);
+                }}
+                className="absolute"
+                style={{
+                  left: gridToPxX(node.left) + CARD_INSET,
+                  top: gridToPxY(node.top) + CARD_INSET,
+                  width: NODE_CELL_WIDTH - CARD_INSET * 2,
+                  height: NODE_CELL_HEIGHT - CARD_INSET * 2,
+                }}
+              >
+                {person ? (
+                  person.is_claimed ? (
+                    <PersonCard
+                      person={person}
+                      bucket={bucket!}
+                      highlighted={highlighted === node.id}
+                      onOpenReport={setSelectedPersonId}
+                    />
+                  ) : (
                     <UnknownPersonCard />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+                  )
+                ) : isUnknownPartnerId(node.id) ? (
+                  <UnknownPersonCard />
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </div>
 
