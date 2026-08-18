@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { SearchIllustration } from "@/components/illustrations/Illustrations";
 import { Alert } from "@/components/ui/Alert";
 import { inputClass } from "@/components/ui/inputStyles";
+import { FetchTimeoutError, fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { bucketForDepth, GENERATION_COLOR_VAR, GENERATION_LABEL } from "@/lib/generation";
 import { genderLabel } from "@/lib/healthFormat";
 
@@ -70,15 +71,19 @@ export function SearchClient({ persons, egoPersonId }: Props) {
       setHealthSearchLoading(true);
       setHealthSearchError(null);
       try {
-        const res = await fetch(`/api/health-records/search?q=${encodeURIComponent(trimmedQuery)}`);
+        const res = await fetchWithTimeout(`/api/health-records/search?q=${encodeURIComponent(trimmedQuery)}`);
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (!res.ok) throw new Error("Could not search health records");
         setFetched(data.recognized ? { query: trimmedQuery, results: data.results } : null);
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           setFetched(null);
-          setHealthSearchError("Couldn't search by health details — try a simpler phrase.");
+          setHealthSearchError(
+            err instanceof FetchTimeoutError
+              ? "That's taking too long to search — please try again in a moment."
+              : "Couldn't search by health details — try a simpler phrase."
+          );
         }
       } finally {
         if (!cancelled) setHealthSearchLoading(false);

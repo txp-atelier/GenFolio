@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/inputStyles";
 import { summarizeApiError } from "@/lib/apiError";
+import { FetchTimeoutError, fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { genderLabel } from "@/lib/healthFormat";
 
 import type { HealthMatch } from "./types";
@@ -77,11 +78,22 @@ export function HealthChatPanel({ onClose }: Props) {
     setSending(true);
     setError(null);
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId }),
-    });
+    let res: Response;
+    try {
+      res = await fetchWithTimeout("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, session_id: sessionId }),
+      });
+    } catch (err) {
+      setSending(false);
+      setError(
+        err instanceof FetchTimeoutError
+          ? "That's taking too long to answer — please try again in a moment."
+          : "We couldn't get a response — please try again."
+      );
+      return;
+    }
     const data = await res.json().catch(() => ({}));
     setSending(false);
 
@@ -107,7 +119,18 @@ export function HealthChatPanel({ onClose }: Props) {
     setComparing(true);
     setError(null);
 
-    const res = await fetch("/api/health-records/compare");
+    let res: Response;
+    try {
+      res = await fetchWithTimeout("/api/health-records/compare");
+    } catch (err) {
+      setComparing(false);
+      setError(
+        err instanceof FetchTimeoutError
+          ? "That's taking too long — please try again in a moment."
+          : "We couldn't compare records — please try again."
+      );
+      return;
+    }
     const data = await res.json().catch(() => ({}));
     setComparing(false);
 
