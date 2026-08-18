@@ -1,7 +1,9 @@
 """Turns health records into embedded text chunks for RAG retrieval, stored
-via LangChain's PGVector store (app.core.vector_store). Embeddings run
-locally (sentence-transformers/all-MiniLM-L6-v2, via langchain_huggingface)
-— no API key, no health data ever leaves this machine to be embedded."""
+via LangChain's PGVector store (app.core.vector_store). Embeddings run via
+Hugging Face's hosted Inference API (sentence-transformers/all-MiniLM-L6-v2,
+through langchain_huggingface's HuggingFaceEndpointEmbeddings) rather than
+locally — record content is sent there to be embedded, same as it's already
+sent to Groq's hosted API to generate chat answers."""
 
 import uuid
 

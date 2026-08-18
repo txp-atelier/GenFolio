@@ -4,32 +4,32 @@ schema in app.db.base_models on purpose, since langchain-postgres requires
 psycopg3, not the asyncpg driver the rest of the app uses."""
 
 from functools import lru_cache
-from typing import TYPE_CHECKING
 
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_postgres import PGVector
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
-
-if TYPE_CHECKING:
-    from langchain_huggingface import HuggingFaceEmbeddings
 
 COLLECTION_NAME = "health_records"
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 @lru_cache
-def get_embeddings_model() -> "HuggingFaceEmbeddings":
-    # Imported lazily, not at module load: langchain-huggingface pulls in
-    # sentence-transformers -> torch/transformers, whose import-time memory
-    # footprint alone (300-600MB+) was enough to OOM-kill the whole process
-    # on boot under Render's free-tier 512MB limit — before a single request
-    # (even an unrelated one like login) could be served. Deferring the
-    # import to first actual use means the app boots and serves every route
-    # that isn't the health chat without ever paying that cost.
-    from langchain_huggingface import HuggingFaceEmbeddings
-
-    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+def get_embeddings_model() -> HuggingFaceEndpointEmbeddings:
+    # Computed via Hugging Face's hosted Inference API, NOT locally: loading
+    # this same model through sentence-transformers/torch in-process costs
+    # 300MB+ just to import, before embedding a single record — enough on
+    # its own to OOM-kill the backend on Render's 512MB free tier. This
+    # calls the same model remotely instead, so no ML runtime ever loads
+    # into this process. Answer generation already sends this same record
+    # content to Groq's hosted API (see rag_service.py), so this doesn't
+    # introduce a new category of data leaving the server — just moves the
+    # embedding step to use the same pattern the generation step already does.
+    return HuggingFaceEndpointEmbeddings(
+        model=EMBEDDING_MODEL_NAME,
+        huggingfacehub_api_token=settings.huggingface_api_token,
+    )
 
 
 @lru_cache

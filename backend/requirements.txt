@@ -1,11 +1,3 @@
-# CPU-only torch build: the plain PyPI "torch" wheel bundles CUDA/Nvidia
-# libraries that are never used on a GPU-less host but still cost several
-# hundred MB extra to install and load into memory — enough on its own to
-# OOM-kill the backend on Render's 512MB free tier the first time the health
-# chat/search feature (sentence-transformers -> torch) actually runs.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.13.0+cpu
-
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 sqlalchemy==2.0.36
@@ -20,7 +12,6 @@ bcrypt==4.2.1
 python-multipart==0.0.20
 pytest==8.3.4
 cloudinary==1.45.0
-sentence-transformers
 pgvector
 groq
 langchain-core==1.5.4

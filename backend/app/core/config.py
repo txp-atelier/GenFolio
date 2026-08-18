@@ -45,9 +45,11 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
-    # RAG chatbot generation (embeddings are local — see embedding_service.py).
+    # RAG chatbot: retrieval embeddings via Hugging Face's hosted Inference
+    # API, answer generation via Groq — see app.core.vector_store.
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
+    huggingface_api_token: str = ""
 
     # Cosine distance cutoff for pgvector retrieval — results weaker than
     # this are treated as "nothing relevant found" rather than being fed to
