@@ -21,6 +21,11 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    # Dockerfile's CMD omits --reload (it's a prod-crashing footgun on
+    # platforms like Render — the watcher's inotify use exceeds the
+    # container's open-file limit). Local dev bind-mounts the source and
+    # wants hot reload back, so it's restored here instead.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     env_file:
       - ./backend/.env
     environment:
