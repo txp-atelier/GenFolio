@@ -48,7 +48,9 @@ class Settings(BaseSettings):
     # RAG chatbot: retrieval embeddings via Hugging Face's hosted Inference
     # API, answer generation via Groq — see app.core.vector_store.
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    # llama-3.3-70b-versatile was deprecated/shut off by Groq on 2026-08-16;
+    # this is their recommended same-tier replacement.
+    groq_model: str = "openai/gpt-oss-120b"
     huggingface_api_token: str = ""
 
     # Cosine distance cutoff for pgvector retrieval — results weaker than
