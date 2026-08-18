@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PRODUCTION_FRONTEND_URL = "https://genfolio-txp.vercel.app"
 
 
 class Settings(BaseSettings):
@@ -16,12 +19,25 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
 
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # Left unset by default so the environment-based fallback below can
+    # apply; set CORS_ORIGINS explicitly to override either environment.
+    cors_origins: list[str] | None = None
 
     # Used to build password-reset links. Real email delivery isn't wired up
     # yet (see invitations: link-only for MVP), so outside production the
     # reset endpoint hands the link straight back in the response instead.
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str | None = None
+
+    @model_validator(mode="after")
+    def _apply_environment_url_defaults(self) -> "Settings":
+        is_production = self.environment == "production"
+        if self.cors_origins is None:
+            self.cors_origins = (
+                [PRODUCTION_FRONTEND_URL] if is_production else ["http://localhost:3000"]
+            )
+        if self.frontend_url is None:
+            self.frontend_url = PRODUCTION_FRONTEND_URL if is_production else "http://localhost:3000"
+        return self
 
     # Profile picture uploads. Kept server-side only — the frontend never
     # sees these, it uploads the file to our backend, which forwards it.
