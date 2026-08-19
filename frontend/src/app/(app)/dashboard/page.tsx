@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 
-import { AddPersonIcon, HeartPulseIcon, TreeIcon } from "@/components/icons";
+import { HeartPulseIcon, TreeIcon } from "@/components/icons";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { Avatar } from "@/components/Avatar";
-import { Button } from "@/components/ui/Button";
 import { useUser } from "@/lib/UserContext";
 
 const SHORTCUTS = [
@@ -41,23 +40,18 @@ export default function DashboardPage() {
       <OnboardingTour />
 
       {/* Header lives directly on the page — not boxed in a card — for a
-          lighter, less "everything is a widget" feel. */}
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar url={me.profile_picture_url} firstName={me.first_name} lastName={me.last_name} size={56} />
-          <div>
-            <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-              Welcome back, {me.first_name}
-            </h1>
-            <p className="text-sm text-muted-foreground">The {me.family_name} family</p>
-          </div>
+          lighter, less "everything is a widget" feel. The "add a family
+          member" action isn't repeated here — NavBar already keeps it
+          persistently visible (header pill on desktop, emphasized tab on
+          mobile), so a second copy right below it was pure duplication. */}
+      <div className="flex items-center gap-4">
+        <Avatar url={me.profile_picture_url} firstName={me.first_name} lastName={me.last_name} size={56} />
+        <div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+            Welcome back, {me.first_name}
+          </h1>
+          <p className="text-sm text-muted-foreground">The {me.family_name} family</p>
         </div>
-        <Link href="/add" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">
-            <AddPersonIcon width={17} height={17} />
-            Add a family member
-          </Button>
-        </Link>
       </div>
 
       <div className="border-t border-border" />

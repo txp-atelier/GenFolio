@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -17,6 +17,10 @@ from app.schemas.health_records import (
     UpdateHealthRecordRequest,
 )
 from app.services.auth_service import get_person_by_user_id
+from app.services.embedding_service import (
+    delete_health_record_embedding_background,
+    sync_health_record_embedding_background,
+)
 from app.services.health_record_service import (
     HealthRecordNotFoundError,
     InvalidHealthRecordValueError,
@@ -57,6 +61,7 @@ async def _get_own_person(db: AsyncSession, current_user: User) -> Person:
 @router.post("", response_model=HealthRecordOut, status_code=status.HTTP_201_CREATED)
 async def create_record(
     data: CreateHealthRecordRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> HealthRecordOut:
@@ -67,6 +72,11 @@ async def create_record(
         )
     except InvalidHealthRecordValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, _safe_errors(exc.errors)) from exc
+    # The record is already committed at this point — re-indexing it for the
+    # RAG chatbot happens after the response goes out, so a slow or
+    # unreachable embedding API delays the chatbot's index, never the save
+    # itself (see app.services.embedding_service).
+    background_tasks.add_task(sync_health_record_embedding_background, person, record)
     return HealthRecordOut.model_validate(record)
 
 
@@ -214,6 +224,7 @@ async def get_family_member_report(
 async def update_record(
     record_id: uuid.UUID,
     data: UpdateHealthRecordRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> HealthRecordOut:
@@ -226,17 +237,22 @@ async def update_record(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health record not found") from exc
     except InvalidHealthRecordValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, _safe_errors(exc.errors)) from exc
+    content_changed = data.value is not None or data.recorded_at is not None
+    if content_changed:
+        background_tasks.add_task(sync_health_record_embedding_background, person, record)
     return HealthRecordOut.model_validate(record)
 
 
 @router.delete("/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_record(
     record_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     person = await _get_own_person(db, current_user)
     try:
-        await delete_health_record(db, person.id, record_id)
+        deleted_record_id = await delete_health_record(db, person.id, record_id)
     except HealthRecordNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health record not found") from exc
+    background_tasks.add_task(delete_health_record_embedding_background, deleted_record_id)

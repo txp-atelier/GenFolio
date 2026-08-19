@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 
 import {
   AddPersonIllustration,
+  BanyanTreeIllustration,
   ConnectIllustration,
   HeartPulseIllustration,
-  TreeSproutIllustration,
 } from "@/components/illustrations/Illustrations";
 import { Button } from "@/components/ui/Button";
 
@@ -14,7 +14,7 @@ const STORAGE_KEY = "genfolio_onboarding_dismissed_v1";
 
 const STEPS = [
   {
-    illustration: <TreeSproutIllustration />,
+    illustration: <BanyanTreeIllustration />,
     title: "This is your family tree",
     body: "Everyone you add shows up here, connected by lines — parents above, children below, and people your age right in the middle.",
   },

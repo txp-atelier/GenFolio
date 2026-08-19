@@ -276,3 +276,88 @@ input[type="password"]::-ms-clear {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------
+ * Vitals summary animations — the health report's live status glyphs
+ * (sugar dial, pulse wave, lipid gauge). Always running; severity is
+ * conveyed through color and, for the lipid gauge, dot count/speed —
+ * there's no pause control.
+ * ------------------------------------------------------------------- */
+@keyframes vitals-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vitals-pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}
+
+@keyframes vitals-wave {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* A single dot's left-to-right pass through the lipid gauge track — 0% and
+ * 100% sit just outside the track so it fades in/out at the edges instead
+ * of popping in/out. */
+@keyframes vitals-flow {
+  0% {
+    left: -10%;
+    opacity: 0;
+  }
+  10%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.vitals-spin {
+  animation: vitals-spin 18s linear infinite;
+}
+
+.vitals-pulse-soft {
+  animation: vitals-pulse-soft 1.6s ease-in-out infinite;
+}
+
+.vitals-wave {
+  animation: vitals-wave 1.1s linear infinite;
+}
+
+/* Speed doubles as a status cue on the lipid gauge: a calm, steady pace
+ * for a normal reading, sluggish for low, urgent for high. */
+.vitals-flow {
+  animation: vitals-flow 2.2s linear infinite;
+}
+
+.vitals-flow-slow {
+  animation: vitals-flow 3.6s linear infinite;
+}
+
+.vitals-flow-fast {
+  animation: vitals-flow 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vitals-spin,
+  .vitals-pulse-soft,
+  .vitals-wave,
+  .vitals-flow,
+  .vitals-flow-slow,
+  .vitals-flow-fast {
+    animation: none;
+  }
+}

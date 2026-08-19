@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { FamilyMemberReportModal } from "@/components/FamilyMemberReportModal";
 import { AddPersonIcon } from "@/components/icons";
 import { EmptyState } from "@/components/EmptyState";
-import { TreeSproutIllustration } from "@/components/illustrations/Illustrations";
+import { BanyanTreeIllustration } from "@/components/illustrations/Illustrations";
 import { Button } from "@/components/ui/Button";
 import { bucketForDepth, GENERATION_COLOR_VAR, GENERATION_LABEL, type GenerationBucket } from "@/lib/generation";
 
@@ -56,7 +56,7 @@ export function FamilyTreeView({ persons, egoPersonId, focusPersonId }: Props) {
   if (!layout) {
     return (
       <EmptyState
-        illustration={<TreeSproutIllustration />}
+        illustration={<BanyanTreeIllustration />}
         title="Your family tree starts with you"
         description="Add your first family member to begin — parents, children, a sibling, or a spouse. We'll take care of connecting everyone else."
         action={

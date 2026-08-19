@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.health_record import HealthRecord
 from app.models.person import Person
 from app.schemas.health_record_values import VALUE_SCHEMAS_BY_CATEGORY
-from app.services.embedding_service import delete_health_record_embedding, sync_health_record_embedding
 from app.services.relationship_service import FamilyGraph, build_relative_list, load_family_persons
 
 
@@ -56,12 +55,6 @@ async def create_health_record(
     db.add(record)
     await db.commit()
     await db.refresh(record)
-
-    # The embedding store is a separate connection (LangChain's PGVector
-    # requires psycopg3, not our asyncpg engine) — not part of this
-    # transaction. Sync it only after the record itself is safely
-    # committed, so we never embed something that didn't actually save.
-    await sync_health_record_embedding(person, record)
     return record
 
 
@@ -98,8 +91,6 @@ async def update_health_record(
 ) -> HealthRecord:
     record = await get_own_health_record(db, person.id, record_id)
 
-    content_changed = value is not None or recorded_at is not None
-
     if value is not None:
         record.value = validate_value(record.category, value)
     if recorded_at is not None:
@@ -109,18 +100,15 @@ async def update_health_record(
 
     await db.commit()
     await db.refresh(record)
-
-    if content_changed:
-        await sync_health_record_embedding(person, record)
     return record
 
 
-async def delete_health_record(db: AsyncSession, person_id: uuid.UUID, record_id: uuid.UUID) -> None:
+async def delete_health_record(db: AsyncSession, person_id: uuid.UUID, record_id: uuid.UUID) -> uuid.UUID:
     record = await get_own_health_record(db, person_id, record_id)
     record_id_copy = record.id
     await db.delete(record)
     await db.commit()
-    await delete_health_record_embedding(record_id_copy)
+    return record_id_copy
 
 
 async def get_family_member(db: AsyncSession, viewer: Person, person_id: uuid.UUID) -> Person | None:

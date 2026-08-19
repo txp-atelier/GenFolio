@@ -35,6 +35,21 @@ export function TreeIcon(props: IconProps) {
   );
 }
 
+// The brand mark: plain forking branches, not a canopy silhouette — a trunk
+// splitting into two boughs, each splitting again into two twigs. No
+// enclosing outline (canopy blob, pot, pin-drop point) to go muddy at
+// 18-22px, just line-work that stays a tree at any size, including the
+// 16x16 favicon (see app/icon.svg, kept in sync by hand since that file
+// can't import this one). Used for GenFolio's logo badge (NavBar, AuthCard)
+// — kept separate from TreeIcon, which stays the plain "My Tree" nav glyph.
+export function FamilyTreeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 21v-4M12 17 8 12M12 17 16 12M8 12 5 7M8 12 10 8M16 12 14 8M16 12 19 7" />
+    </svg>
+  );
+}
+
 export function AddPersonIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -99,7 +114,11 @@ export function CopyIcon(props: IconProps) {
 export function CheckIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M20 6 9 17l-5-5" />
+      {/* Shifted 0.5 units down from a "textbook" checkmark path — its
+          stroke ink (endpoints included) is otherwise measurably ~0.5
+          units above true center in this viewBox, which reads as a
+          slightly-too-high tick once centered in a checkbox. */}
+      <path d="M20 6.5 9 17.5l-5-5" />
     </svg>
   );
 }

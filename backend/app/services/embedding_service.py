@@ -5,11 +5,14 @@ through langchain_huggingface's HuggingFaceEndpointEmbeddings) rather than
 locally — record content is sent there to be embedded, same as it's already
 sent to Groq's hosted API to generate chat answers."""
 
+import logging
 import uuid
 
 from app.core.vector_store import get_vector_store
 from app.models.health_record import HealthRecord
 from app.models.person import Person
+
+logger = logging.getLogger(__name__)
 
 
 def build_embedding_content(person: Person, record: HealthRecord) -> str:
@@ -68,3 +71,27 @@ async def sync_health_record_embedding(person: Person, record: HealthRecord) -> 
 
 async def delete_health_record_embedding(record_id: uuid.UUID) -> None:
     await get_vector_store().adelete(ids=[str(record_id)])
+
+
+# --- Background-task wrappers ---------------------------------------------
+# The record itself is already committed to Postgres by the time these run
+# (see health_record_service) — the embedding is a retrieval aid for the RAG
+# chatbot, not part of what makes a save succeed. Scheduled via FastAPI's
+# BackgroundTasks (see app.api.health_records) so a slow or unreachable HF
+# endpoint delays the chatbot's index, never the user's save request. Each
+# wrapper swallows its own failure (logged, not raised) since there's no
+# request left by the time a background task runs to report an error to.
+
+
+async def sync_health_record_embedding_background(person: Person, record: HealthRecord) -> None:
+    try:
+        await sync_health_record_embedding(person, record)
+    except Exception:
+        logger.exception("Failed to sync embedding for health record %s", record.id)
+
+
+async def delete_health_record_embedding_background(record_id: uuid.UUID) -> None:
+    try:
+        await delete_health_record_embedding(record_id)
+    except Exception:
+        logger.exception("Failed to delete embedding for health record %s", record_id)

@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import { TreeSproutIllustration } from "@/components/illustrations/Illustrations";
+import { BanyanTreeIllustration } from "@/components/illustrations/Illustrations";
 import { Button } from "@/components/ui/Button";
 
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
-      <TreeSproutIllustration size={128} />
+      <BanyanTreeIllustration size={128} />
       <div className="flex flex-col gap-3">
         <h1 className="font-heading text-4xl font-bold tracking-tight text-foreground">GenFolio</h1>
         <p className="max-w-md text-base text-muted-foreground">

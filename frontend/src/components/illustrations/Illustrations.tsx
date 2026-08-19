@@ -5,7 +5,14 @@
 
 type Props = { size?: number; className?: string };
 
-export function TreeSproutIllustration({ size = 112, className = "" }: Props) {
+// The app's one tree illustration (homepage hero, the empty-tree state,
+// onboarding's first step) — an actual branching tree, not a canopy
+// silhouette with dots pinned on: a trunk forks into two boughs (parents),
+// each bough forks again into two twigs (grandparents), the exact shape of
+// a pedigree chart, every person's two branches leading up to two more.
+// Small root flares at the base echo the banyan mark used for the logo
+// (NavBar, AuthCard) without repeating its solid-canopy composition.
+export function BanyanTreeIllustration({ size = 112, className = "" }: Props) {
   return (
     <svg
       width={size}
@@ -15,27 +22,48 @@ export function TreeSproutIllustration({ size = 112, className = "" }: Props) {
       className={className}
       aria-hidden="true"
     >
+      <ellipse cx="60" cy="108" rx="24" ry="4" fill="var(--border)" />
+
+      {/* roots — a small nod to the banyan mark, not the focal shape here */}
       <path
-        d="M60 108V64"
+        d="M52 106c-2-6-1-11 2-15M68 106c2-6 1-11-2-15"
         stroke="var(--border-strong)"
-        strokeWidth="4"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
+
+      {/* trunk → 2 parent boughs → 4 grandparent twigs */}
+      <path d="M60 104V78" stroke="var(--border-strong)" strokeWidth="6" strokeLinecap="round" />
+      <path
+        d="M60 78C46 72 40 64 36 54M60 78C74 72 80 64 84 54"
+        stroke="var(--border-strong)"
+        strokeWidth="4.5"
         strokeLinecap="round"
       />
       <path
-        d="M60 82c0-14-16-18-22-30M60 72c0-12 14-16 19-27M60 92c0-10-12-13-16-22"
+        d="M36 54C28 46 22 38 18 28M36 54C40 46 44 38 46 28M84 54C80 46 76 38 74 28M84 54C92 46 98 38 100 28"
         stroke="var(--border-strong)"
-        strokeWidth="3.5"
+        strokeWidth="3"
         strokeLinecap="round"
       />
-      <circle cx="60" cy="30" r="17" fill="var(--gen-self)" opacity="0.18" />
-      <circle cx="60" cy="30" r="12" fill="var(--gen-self)" />
-      <circle cx="30" cy="50" r="13" fill="var(--gen-up1)" opacity="0.18" />
-      <circle cx="30" cy="50" r="9" fill="var(--gen-up1)" />
-      <circle cx="91" cy="46" r="13" fill="var(--gen-down1)" opacity="0.18" />
-      <circle cx="91" cy="46" r="9" fill="var(--gen-down1)" />
-      <circle cx="42" cy="18" r="9" fill="var(--gen-peer)" opacity="0.18" />
-      <circle cx="42" cy="18" r="6" fill="var(--gen-peer)" />
-      <ellipse cx="60" cy="110" rx="30" ry="4" fill="var(--border)" />
+
+      <circle cx="60" cy="80" r="17" fill="var(--gen-self)" opacity="0.25" />
+      <circle cx="60" cy="80" r="12" fill="var(--gen-self)" />
+
+      <circle cx="36" cy="54" r="14" fill="var(--gen-up1)" opacity="0.25" />
+      <circle cx="36" cy="54" r="10" fill="var(--gen-up1)" />
+      <circle cx="84" cy="54" r="14" fill="var(--gen-up1)" opacity="0.25" />
+      <circle cx="84" cy="54" r="10" fill="var(--gen-up1)" />
+
+      <circle cx="18" cy="28" r="10" fill="var(--gen-up2)" opacity="0.25" />
+      <circle cx="18" cy="28" r="7" fill="var(--gen-up2)" />
+      <circle cx="46" cy="28" r="10" fill="var(--gen-up2)" opacity="0.25" />
+      <circle cx="46" cy="28" r="7" fill="var(--gen-up2)" />
+      <circle cx="74" cy="28" r="10" fill="var(--gen-up2)" opacity="0.25" />
+      <circle cx="74" cy="28" r="7" fill="var(--gen-up2)" />
+      <circle cx="100" cy="28" r="10" fill="var(--gen-up2)" opacity="0.25" />
+      <circle cx="100" cy="28" r="7" fill="var(--gen-up2)" />
     </svg>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { AddPersonIcon, HeartPulseIcon, HomeIcon, SearchIcon, TreeIcon } from "@/components/icons";
+import { AddPersonIcon, FamilyTreeIcon, HeartPulseIcon, HomeIcon, SearchIcon, TreeIcon } from "@/components/icons";
 import type { MeResponse } from "@/lib/types";
 
 import { UserMenu } from "./UserMenu";
@@ -45,7 +45,7 @@ export function NavBar({ me }: { me: MeResponse }) {
                 className="flex h-8 w-8 items-center justify-center rounded-full text-primary-foreground"
                 style={{ background: "var(--primary)" }}
               >
-                <TreeIcon width={18} height={18} stroke="currentColor" />
+                <FamilyTreeIcon width={18} height={18} stroke="currentColor" />
               </span>
               <span className="hidden sm:inline">GenFolio</span>
             </Link>

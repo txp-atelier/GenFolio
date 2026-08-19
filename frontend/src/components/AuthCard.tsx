@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { TreeIcon } from "@/components/icons";
+import { FamilyTreeIcon } from "@/components/icons";
 import { Card } from "@/components/ui/Card";
 
 export function AuthCard({
@@ -23,7 +23,7 @@ export function AuthCard({
           className="flex h-8 w-8 items-center justify-center rounded-full text-primary-foreground"
           style={{ background: "var(--primary)" }}
         >
-          <TreeIcon width={18} height={18} stroke="currentColor" />
+          <FamilyTreeIcon width={18} height={18} stroke="currentColor" />
         </span>
         GenFolio
       </Link>

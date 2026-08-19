@@ -18,9 +18,6 @@ export const healthReportSchema = z
     diastolic: z.string(),
 
     cholesterol_total: z.string(),
-    cholesterol_hdl: z.string(),
-    cholesterol_ldl: z.string(),
-    cholesterol_triglycerides: z.string(),
     cholesterol_unit: z.enum(["mg/dL", "mmol/L"]),
 
     other_notes: z.string(),
@@ -35,14 +32,6 @@ export const healthReportSchema = z
     if (!isPositiveInt(data.diastolic)) issue("diastolic", "Enter a positive whole number");
     if (!isPositiveNumber(data.cholesterol_total)) {
       issue("cholesterol_total", "Enter a positive number");
-    }
-
-    for (const [field, val] of [
-      ["cholesterol_hdl", data.cholesterol_hdl],
-      ["cholesterol_ldl", data.cholesterol_ldl],
-      ["cholesterol_triglycerides", data.cholesterol_triglycerides],
-    ] as const) {
-      if (val.trim() !== "" && !isPositiveNumber(val)) issue(field, "Enter a positive number");
     }
 
     if (data.other_notes.length > 2000) {
@@ -79,11 +68,6 @@ export function buildReportPayloads(data: HealthReportFormValues): ReportPayload
     },
     cholesterol: {
       total: Number(data.cholesterol_total),
-      ...(data.cholesterol_hdl.trim() ? { hdl: Number(data.cholesterol_hdl) } : {}),
-      ...(data.cholesterol_ldl.trim() ? { ldl: Number(data.cholesterol_ldl) } : {}),
-      ...(data.cholesterol_triglycerides.trim()
-        ? { triglycerides: Number(data.cholesterol_triglycerides) }
-        : {}),
       unit: data.cholesterol_unit,
     },
     other: data.other_notes.trim()
