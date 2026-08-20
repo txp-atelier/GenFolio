@@ -6,14 +6,20 @@ function isValueInRange(val: string, max: number): boolean {
 
 export const profileSchema = z
   .object({
+    first_name: z.string(),
+    last_name: z.string(),
     dob: z.string(),
     sex: z.enum(["", "male", "female"]),
     height_cm: z.string(),
     weight_kg: z.string(),
+    other_notes: z.string(),
   })
   .superRefine((data, ctx) => {
     const issue = (path: string, message: string) =>
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+
+    if (!data.first_name.trim()) issue("first_name", "First name is required");
+    if (!data.last_name.trim()) issue("last_name", "Last name is required");
 
     if (!data.dob) {
       issue("dob", "Date of birth is required");
@@ -30,6 +36,10 @@ export const profileSchema = z
     }
     if (!isValueInRange(data.weight_kg, 500)) {
       issue("weight_kg", data.weight_kg.trim() === "" ? "This field is required" : "Enter a value between 0 and 500 kg");
+    }
+
+    if (data.other_notes.length > 2000) {
+      issue("other_notes", "Must be 2000 characters or fewer");
     }
   });
 

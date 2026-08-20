@@ -23,3 +23,12 @@ export type HealthMatch = {
   profile_picture_url: string | null;
   match_percentage: number;
 };
+
+export type HealthReportFile = {
+  id: string;
+  title: string;
+  original_filename: string;
+  file_url: string;
+  mime_type: string;
+  uploaded_at: string;
+};

@@ -61,7 +61,7 @@ export function UserMenu({ me }: { me: MeResponse }) {
             <p className="truncate text-xs text-muted-foreground">{me.user.email}</p>
           </div>
           <Link
-            href="/profile"
+            href="/health?tab=details"
             role="menuitem"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-surface-muted"

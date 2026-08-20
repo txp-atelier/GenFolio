@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
-import { Slider } from "@/components/ui/Slider";
 import { VITALS_TONE_TEXT, type VitalsTone } from "@/lib/vitalsStatus";
 
 type Props = {
@@ -23,17 +22,23 @@ type Props = {
   help?: ReactNode;
 };
 
+const TONE_BORDER: Record<VitalsTone, string> = {
+  good: "border-success-border focus-within:border-success focus-within:ring-success",
+  caution: "border-warning-border focus-within:border-warning focus-within:ring-warning",
+  alert: "border-danger-border focus-within:border-danger focus-within:ring-danger",
+};
+
 function snapToStep(value: number, min: number, step: number): number {
   const snapped = min + Math.round((value - min) / step) * step;
   return Math.round(snapped * 1000) / 1000;
 }
 
-/** One draggable vitals row: label (+ optional "?" tooltip and unit
- * toggle), a tone-colored slider, and a status label / numeric readout
- * underneath — the building block the report's edit form uses for blood
- * sugar, systolic, diastolic, and cholesterol. The readout doubles as a
- * text field: click it to type an exact value instead of dragging. */
-export function VitalsSlider({
+/** One plain number-entry row for a vital: label (+ optional "?" tooltip and
+ * unit toggle), a single tone-tinted number input, and a status label /
+ * error underneath — the building block the report's edit form uses for
+ * blood sugar, systolic, diastolic, and cholesterol. Replaces the old
+ * slider-plus-click-to-edit control with just one always-editable box. */
+export function VitalsNumberField({
   label,
   value,
   min,
@@ -49,14 +54,16 @@ export function VitalsSlider({
   trailing,
   help,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(formatNumber(value));
   const [editError, setEditError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const focused = useRef(false);
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
+    // Only sync from outside while the field isn't focused — otherwise a
+    // parent re-render (e.g. from unit conversion) would fight the user's
+    // in-progress typing.
+    if (!focused.current) setDraft(formatNumber(value));
+  }, [value, formatNumber]);
 
   useEffect(() => {
     if (!editError) return;
@@ -64,16 +71,11 @@ export function VitalsSlider({
     return () => clearTimeout(timer);
   }, [editError]);
 
-  function startEditing() {
-    setDraft(formatNumber(value));
-    setEditing(true);
-  }
-
   function commit() {
-    setEditing(false);
     const parsed = Number(draft);
     if (draft.trim() === "" || Number.isNaN(parsed)) {
       setEditError("Enter a valid number");
+      setDraft(formatNumber(value));
       return;
     }
     const clamped = Math.min(max, Math.max(min, parsed));
@@ -86,11 +88,7 @@ export function VitalsSlider({
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
-      commit();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setEditing(false);
+      e.currentTarget.blur();
     }
   }
 
@@ -103,38 +101,37 @@ export function VitalsSlider({
         </span>
         {trailing}
       </div>
-      <Slider value={value} min={min} max={max} step={step} tone={tone} onChange={onChange} ariaLabel={label} />
+
+      <div
+        className={`flex items-center gap-2 rounded-2xl border bg-surface px-4 py-3 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background ${TONE_BORDER[tone]}`}
+      >
+        {valuePrefix && <span className="shrink-0 text-sm font-medium text-muted-foreground">{valuePrefix}</span>}
+        <input
+          type="number"
+          inputMode="decimal"
+          value={draft}
+          aria-label={label}
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={(e) => {
+            focused.current = true;
+            e.currentTarget.select();
+          }}
+          onBlur={() => {
+            focused.current = false;
+            commit();
+          }}
+          onKeyDown={handleKeyDown}
+          className="w-full min-w-0 bg-transparent text-sm font-semibold text-foreground focus:outline-none"
+        />
+        <span className="shrink-0 text-sm text-muted-foreground">{unit}</span>
+      </div>
+
       <div className="flex items-center justify-between gap-3">
         <span className={`text-xs font-semibold ${statusLabel ? VITALS_TONE_TEXT[tone] : ""}`}>
           {statusLabel || " "}
         </span>
-        {editing ? (
-          <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
-            {valuePrefix}
-            <input
-              ref={inputRef}
-              type="number"
-              inputMode="decimal"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={handleKeyDown}
-              onFocus={(e) => e.currentTarget.select()}
-              className="w-20 rounded-lg border border-border-strong bg-surface px-2 py-0.5 text-right text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <span className="text-muted-foreground">{unit}</span>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={startEditing}
-            className="rounded-lg px-1 text-sm font-semibold text-foreground hover:bg-surface-muted"
-          >
-            {valuePrefix}
-            {formatNumber(value)} {unit}
-          </button>
-        )}
       </div>
+
       {editError && (
         <p className="text-xs text-danger" role="alert">
           {editError}

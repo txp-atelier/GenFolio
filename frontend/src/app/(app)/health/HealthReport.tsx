@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
@@ -11,12 +12,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { HelpTooltip } from "@/components/ui/HelpTooltip";
-import { TextareaField } from "@/components/ui/TextareaField";
+import { Tabs } from "@/components/ui/Tabs";
 import { UnitToggle } from "@/components/ui/UnitToggle";
 import { calculateAge } from "@/lib/age";
-import { summarizeApiError } from "@/lib/apiError";
 import { formatDateDMY } from "@/lib/formatDate";
 import {
   asString,
@@ -41,26 +40,26 @@ import {
   buildReportPayloads,
   healthReportSchema,
   type HealthReportFormValues,
-  type ReportPayloads,
 } from "@/lib/validation/healthReport";
 
+import { fetchHealthRecords, HEALTH_RECORDS_QUERY_KEY, latestByCategory, upsertHealthCategory } from "./api";
+import { MyDetailsSection } from "./MyDetailsSection";
+import { ReportsSection } from "./ReportsSection";
 import type { HealthRecord, HealthRecordCategory } from "./types";
-import { VitalsSlider } from "./VitalsSlider";
+import { VitalsNumberField } from "./VitalsNumberField";
 import { VitalsSummary } from "./VitalsSummary";
-
-export const HEALTH_RECORDS_QUERY_KEY = ["health-records"];
 
 const UNIT_OPTIONS = ["mg/dL", "mmol/L"] as const;
 
 const SUGAR_CONTEXT_OPTIONS: DropdownOption[] = [
-  { value: "", label: "Not specified" },
-  { value: "fasting", label: "Fasting" },
-  { value: "post_meal", label: "After a meal" },
-  { value: "random", label: "Random" },
+  { value: "", label: "Not sure" },
+  { value: "fasting", label: "Before eating (fasting)" },
+  { value: "post_meal", label: "After eating" },
+  { value: "random", label: "Any time (random)" },
 ];
 
 // Starting positions for a brand-new report — comfortably inside the
-// normal range for each vital, so a first-time slider shows "Normal"
+// normal range for each vital, so a first-time field shows "Normal"
 // rather than landing on an alarming edge value.
 const DEFAULT_SUGAR_MGDL = 95;
 const DEFAULT_SYSTOLIC = 116;
@@ -88,23 +87,26 @@ function formatNumber(value: number, unit: Unit): string {
 
 const SUGAR_HELP = (
   <>
-    <p>Blood sugar (also called glucose) is the sugar in your blood. Your body uses it for energy.</p>
-    <p className="mt-2">You can check it with a small home device called a glucometer, or with a blood test at a clinic.</p>
+    <p>Blood sugar (glucose) is the sugar in your blood. Your body gets this from the food you eat, and uses it for energy.</p>
+    <p className="mt-2">
+      You can check it at home with a small machine called a glucometer, or get it tested at any clinic or lab.
+    </p>
     <p className="mt-2 font-medium text-foreground">Normal range</p>
     <p>
-      Before eating (fasting): under 100 mg/dL (5.6 mmol/L)
+      Before eating (fasting): below 100 mg/dL (5.6 mmol/L)
       <br />
-      2 hours after eating: under 140 mg/dL (7.8 mmol/L)
+      2 hours after eating: below 140 mg/dL (7.8 mmol/L)
     </p>
   </>
 );
 
 const BLOOD_PRESSURE_HELP = (
   <>
-    <p>Blood pressure shows how hard your blood pushes against your blood vessels as your heart pumps.</p>
+    <p>Blood pressure shows how hard your blood pushes against your blood vessels as your heart beats.</p>
     <p className="mt-2">
-      It&apos;s checked with a cuff around your arm — at home, a pharmacy, or a clinic. The first number
-      (systolic) is the pressure when your heart beats; the second (diastolic) is the pressure when it rests.
+      It&apos;s checked with a cuff around your arm — you can do this at a pharmacy, a clinic, or at home with a BP
+      machine. The first number (systolic) is the pressure when your heart beats; the second (diastolic) is when it
+      rests between beats.
     </p>
     <p className="mt-2 font-medium text-foreground">Normal range</p>
     <p>Below 120/80 mmHg</p>
@@ -113,10 +115,10 @@ const BLOOD_PRESSURE_HELP = (
 
 const CHOLESTEROL_HELP = (
   <>
-    <p>Cholesterol is a fatty substance in your blood. Too much of it can build up in your blood vessels.</p>
-    <p className="mt-2">It&apos;s checked with a blood test, usually after not eating for a few hours.</p>
+    <p>Cholesterol is a fat that travels in your blood. Too much of it can build up and block your blood vessels over time.</p>
+    <p className="mt-2">It&apos;s checked with a blood test — usually you shouldn&apos;t eat for a few hours before the test.</p>
     <p className="mt-2 font-medium text-foreground">Normal range</p>
-    <p>Desirable total: under 200 mg/dL (5.2 mmol/L)</p>
+    <p>Total cholesterol below 200 mg/dL (5.2 mmol/L)</p>
   </>
 );
 
@@ -148,87 +150,20 @@ function cholesterolInputFrom(record?: HealthRecord): { total: number; unit: Uni
   return { total, unit: (asString(record?.value.unit) || "mg/dL") as Unit };
 }
 
-async function fetchRecords(): Promise<HealthRecord[]> {
-  const res = await fetch("/api/health-records");
-  if (!res.ok) throw new Error("We couldn't load your health records — please refresh the page.");
-  return res.json();
-}
-
-function latestByCategory(
-  records: HealthRecord[]
-): Partial<Record<HealthRecordCategory, HealthRecord>> {
-  const latest: Partial<Record<HealthRecordCategory, HealthRecord>> = {};
-  for (const record of records) {
-    const current = latest[record.category];
-    if (!current || record.recorded_at > current.recorded_at) {
-      latest[record.category] = record;
-    }
-  }
-  return latest;
-}
-
-async function upsertCategory(
-  existing: HealthRecord | undefined,
-  category: string,
-  value: Record<string, unknown>,
-  visibleToFamily: boolean
-) {
-  const res = existing
-    ? await fetch(`/api/health-records/${existing.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value, recorded_at: new Date().toISOString(), visible_to_family: visibleToFamily }),
-      })
-    : await fetch("/api/health-records", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category,
-          value,
-          recorded_at: new Date().toISOString(),
-          visible_to_family: visibleToFamily,
-        }),
-      });
-  if (!res.ok) throw new Error(summarizeApiError(await res.json().catch(() => ({}))));
-}
-
-async function deleteOtherNote(recordId: string) {
-  const res = await fetch(`/api/health-records/${recordId}`, { method: "DELETE" });
-  if (!res.ok && res.status !== 204) {
-    throw new Error("We couldn't clear that note — please try again.");
-  }
-}
-
-// Runs the up-to-4 category writes in parallel rather than one after
-// another — each one used to be individually slow (see backend's
-// embedding_service), so awaiting them in sequence multiplied that latency
-// and left a real gap where the tab could be closed mid-save with only the
-// earlier categories actually written. Promise.allSettled means a failure
-// in one category can't take out ones that already succeeded, and the
-// caller finds out exactly which (if any) still need retrying instead of
-// getting one generic error that could mean "nothing saved" or "everything
-// but this one thing saved."
-async function saveReport(
+async function saveVitals(
   latest: Partial<Record<HealthRecordCategory, HealthRecord>>,
-  payloads: ReportPayloads
+  payloads: ReturnType<typeof buildReportPayloads>
 ) {
   const share = payloads.visible_to_family;
 
   const tasks: { label: string; run: () => Promise<void> }[] = [
-    { label: "blood sugar", run: () => upsertCategory(latest.blood_sugar, "blood_sugar", payloads.blood_sugar, share) },
+    { label: "blood sugar", run: () => upsertHealthCategory(latest.blood_sugar, "blood_sugar", payloads.blood_sugar, share) },
     {
       label: "blood pressure",
-      run: () => upsertCategory(latest.blood_pressure, "blood_pressure", payloads.blood_pressure, share),
+      run: () => upsertHealthCategory(latest.blood_pressure, "blood_pressure", payloads.blood_pressure, share),
     },
-    { label: "cholesterol", run: () => upsertCategory(latest.cholesterol, "cholesterol", payloads.cholesterol, share) },
+    { label: "cholesterol", run: () => upsertHealthCategory(latest.cholesterol, "cholesterol", payloads.cholesterol, share) },
   ];
-
-  if (payloads.other) {
-    const other = payloads.other;
-    tasks.push({ label: "other notes", run: () => upsertCategory(latest.other, "other", other, share) });
-  } else if (latest.other) {
-    tasks.push({ label: "other notes", run: () => deleteOtherNote(latest.other!.id) });
-  }
 
   const outcomes = await Promise.allSettled(tasks.map((t) => t.run()));
   const failed = tasks.filter((_, i) => outcomes[i].status === "rejected").map((t) => t.label);
@@ -241,25 +176,43 @@ async function saveReport(
   }
 }
 
-function hasAnyRecord(latest: Partial<Record<HealthRecordCategory, HealthRecord>>): boolean {
-  return Boolean(latest.blood_sugar || latest.blood_pressure || latest.cholesterol || latest.other);
+function hasAnyVitals(latest: Partial<Record<HealthRecordCategory, HealthRecord>>): boolean {
+  return Boolean(latest.blood_sugar || latest.blood_pressure || latest.cholesterol);
+}
+
+const TAB_OPTIONS = [
+  { value: "vitals", label: "Vitals" },
+  { value: "details", label: "My details" },
+];
+
+function useHealthReportTab(): [string, (tab: string) => void] {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "details" ? "details" : "vitals";
+
+  function setTab(next: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "details") {
+      params.set("tab", "details");
+    } else {
+      params.delete("tab");
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  return [tab, setTab];
 }
 
 export function HealthReport() {
-  const {
-    data: records,
-    isLoading,
-    error: loadError,
-  } = useQuery({ queryKey: HEALTH_RECORDS_QUERY_KEY, queryFn: fetchRecords });
+  const [tab, setTab] = useHealthReportTab();
 
   return (
     <Card className="flex flex-col gap-6">
       <ReportHeader />
-      {isLoading && <p className="text-sm text-muted-foreground">Loading your health report…</p>}
-      {loadError && (
-        <Alert variant="error">We couldn&apos;t load your health report — please refresh the page.</Alert>
-      )}
-      {records && <ReportBody latest={latestByCategory(records)} />}
+      <Tabs options={TAB_OPTIONS} value={tab} onChange={setTab} ariaLabel="Health report sections" />
+      {tab === "details" ? <MyDetailsSection /> : <VitalsTab />}
     </Card>
   );
 }
@@ -284,15 +237,32 @@ function ReportHeader() {
   );
 }
 
+function VitalsTab() {
+  const {
+    data: records,
+    isLoading,
+    error: loadError,
+  } = useQuery({ queryKey: HEALTH_RECORDS_QUERY_KEY, queryFn: fetchHealthRecords });
+
+  return (
+    <div className="flex flex-col gap-6">
+      {isLoading && <p className="text-sm text-muted-foreground">Loading your health report…</p>}
+      {loadError && (
+        <Alert variant="error">We couldn&apos;t load your health report — please refresh the page.</Alert>
+      )}
+      {records && <VitalsBody latest={latestByCategory(records)} />}
+      <ReportsSection />
+    </div>
+  );
+}
+
 type LatestRecords = Partial<Record<HealthRecordCategory, HealthRecord>>;
 
-function ReportBody({ latest }: { latest: LatestRecords }) {
-  const [isEditing, setIsEditing] = useState(!hasAnyRecord(latest));
+function VitalsBody({ latest }: { latest: LatestRecords }) {
+  const [isEditing, setIsEditing] = useState(!hasAnyVitals(latest));
 
   if (isEditing) {
-    return (
-      <ReportForm latest={latest} onDone={() => setIsEditing(false)} onCancel={() => setIsEditing(false)} />
-    );
+    return <ReportForm latest={latest} onDone={() => setIsEditing(false)} onCancel={() => setIsEditing(false)} />;
   }
   return <ReportView latest={latest} onEdit={() => setIsEditing(true)} />;
 }
@@ -322,13 +292,11 @@ type ReportViewProps = { latest: LatestRecords; onEdit: () => void };
  * glyph for each vital up top, plain values with no inputs below, and a
  * single Edit affordance to switch into the form. */
 function ReportView({ latest, onEdit }: ReportViewProps) {
-  const filled = hasAnyRecord(latest);
-  const notes = asString(latest.other?.value?.notes);
+  const filled = hasAnyVitals(latest);
   const shared =
     latest.blood_sugar?.visible_to_family ??
     latest.blood_pressure?.visible_to_family ??
     latest.cholesterol?.visible_to_family ??
-    latest.other?.visible_to_family ??
     true;
 
   return (
@@ -375,13 +343,6 @@ function ReportView({ latest, onEdit }: ReportViewProps) {
             />
           </dl>
 
-          <div>
-            <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-              Other health notes
-            </h3>
-            <p className="mt-2 text-sm text-foreground">{notes || "No notes recorded."}</p>
-          </div>
-
           <p className="text-xs text-muted-foreground">
             {shared
               ? "Shared with your family for comparison."
@@ -397,13 +358,11 @@ type ReportFormProps = { latest: LatestRecords; onDone: () => void; onCancel: ()
 
 function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
   const queryClient = useQueryClient();
-  const [pendingValues, setPendingValues] = useState<HealthReportFormValues | null>(null);
 
   const sugar = latest.blood_sugar?.value ?? {};
   const bp = latest.blood_pressure?.value ?? {};
   const cholesterol = latest.cholesterol?.value ?? {};
-  const other = latest.other?.value ?? {};
-  const anyExistingRecord = latest.blood_sugar ?? latest.blood_pressure ?? latest.cholesterol ?? latest.other;
+  const anyExistingRecord = latest.blood_sugar ?? latest.blood_pressure ?? latest.cholesterol;
 
   const {
     register,
@@ -425,7 +384,6 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
       cholesterol_total: asString(cholesterol.total) || String(DEFAULT_CHOLESTEROL_MGDL),
       cholesterol_unit: (asString(cholesterol.unit) || "mg/dL") as Unit,
 
-      other_notes: asString(other.notes),
       share_with_family: anyExistingRecord?.visible_to_family ?? true,
     },
   });
@@ -459,29 +417,12 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
   const cholBounds = cholesterolRange(cholUnit);
 
   const mutation = useMutation({
-    mutationFn: (values: HealthReportFormValues) => saveReport(latest, buildReportPayloads(values)),
+    mutationFn: (values: HealthReportFormValues) => saveVitals(latest, buildReportPayloads(values)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: HEALTH_RECORDS_QUERY_KEY });
       onDone();
     },
   });
-
-  function onValid(values: HealthReportFormValues) {
-    // Clearing a previously-saved note is a small, real "delete" — confirm
-    // it in plain language instead of silently dropping it on save.
-    const isClearingOtherNotes = latest.other && !values.other_notes.trim();
-    if (isClearingOtherNotes) {
-      setPendingValues(values);
-      return;
-    }
-    mutation.mutate(values);
-  }
-
-  function confirmClearOtherNotes() {
-    if (!pendingValues) return;
-    mutation.mutate(pendingValues);
-    setPendingValues(null);
-  }
 
   function handleSugarUnitChange(unit: Unit) {
     const current = Number(getValues("sugar_value")) || DEFAULT_SUGAR_MGDL;
@@ -498,7 +439,7 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onValid)} className="flex flex-col gap-6" noValidate>
+    <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="flex flex-col gap-6" noValidate>
       <section className="flex flex-col gap-5">
         <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Vitals</h3>
 
@@ -508,8 +449,21 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
           cholesterol={{ total: cholNum, unit: cholUnit }}
         />
 
-        <div className="flex flex-col gap-2">
-          <VitalsSlider
+        <div className="flex flex-col gap-3">
+          <Controller
+            name="sugar_context"
+            control={control}
+            render={({ field }) => (
+              <Dropdown
+                label="When did you check this?"
+                hint="This changes what counts as normal"
+                options={SUGAR_CONTEXT_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
+          />
+          <VitalsNumberField
             label="Blood sugar"
             value={sugarNum}
             min={sugarBounds.min}
@@ -531,19 +485,6 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
               />
             }
           />
-          <Controller
-            name="sugar_context"
-            control={control}
-            render={({ field }) => (
-              <Dropdown
-                label="Context"
-                hint="Optional — fasting or after a meal changes what counts as normal"
-                options={SUGAR_CONTEXT_OPTIONS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            )}
-          />
           {latest.blood_sugar && (
             <p className="text-xs text-muted-foreground">
               Last recorded: {formatDateDMY(latest.blood_sugar.recorded_at)}
@@ -556,7 +497,7 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
             Blood pressure (systolic / diastolic)
             <HelpTooltip label="About blood pressure">{BLOOD_PRESSURE_HELP}</HelpTooltip>
           </span>
-          <VitalsSlider
+          <VitalsNumberField
             label="Systolic"
             value={systolicNum}
             min={SYSTOLIC_RANGE.min}
@@ -566,10 +507,10 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
             onChange={(v) => setValue("systolic", String(v))}
             unit="mmHg"
             formatNumber={(v) => String(Math.round(v))}
-            valuePrefix="Sys: "
+            valuePrefix="Sys:"
             error={errors.systolic?.message}
           />
-          <VitalsSlider
+          <VitalsNumberField
             label="Diastolic"
             value={diastolicNum}
             min={DIASTOLIC_RANGE.min}
@@ -579,7 +520,7 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
             onChange={(v) => setValue("diastolic", String(v))}
             unit="mmHg"
             formatNumber={(v) => String(Math.round(v))}
-            valuePrefix="Dia: "
+            valuePrefix="Dia:"
             statusLabel={bpStatus?.label}
             error={errors.diastolic?.message}
           />
@@ -591,7 +532,7 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <VitalsSlider
+          <VitalsNumberField
             label="Cholesterol (total)"
             value={cholNum}
             min={cholBounds.min}
@@ -621,19 +562,6 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
-          Other health notes
-        </h3>
-        <TextareaField
-          label="Notes"
-          hint="Optional — describe any other condition you'd like on record"
-          rows={4}
-          error={errors.other_notes?.message}
-          {...register("other_notes")}
-        />
-      </section>
-
       <div className="flex justify-between items-start gap-2 rounded-2xl border border-border bg-surface-muted px-4 py-3">
         <Checkbox
           label="Share this report with my family"
@@ -661,16 +589,6 @@ function ReportForm({ latest, onDone, onCancel }: ReportFormProps) {
           Cancel
         </Button>
       </div>
-
-      <ConfirmDialog
-        open={pendingValues !== null}
-        title="Remove this health note?"
-        description="You've cleared the text in “Other health notes”. Saving now will remove it from your report. This can't be undone."
-        confirmLabel="Yes, remove it"
-        loading={mutation.isPending}
-        onConfirm={confirmClearOtherNotes}
-        onCancel={() => setPendingValues(null)}
-      />
     </form>
   );
 }

@@ -20,7 +20,6 @@ export const healthReportSchema = z
     cholesterol_total: z.string(),
     cholesterol_unit: z.enum(["mg/dL", "mmol/L"]),
 
-    other_notes: z.string(),
     share_with_family: z.boolean(),
   })
   .superRefine((data, ctx) => {
@@ -32,10 +31,6 @@ export const healthReportSchema = z
     if (!isPositiveInt(data.diastolic)) issue("diastolic", "Enter a positive whole number");
     if (!isPositiveNumber(data.cholesterol_total)) {
       issue("cholesterol_total", "Enter a positive number");
-    }
-
-    if (data.other_notes.length > 2000) {
-      issue("other_notes", "Must be 2000 characters or fewer");
     }
   });
 
@@ -50,7 +45,6 @@ export type ReportPayloads = {
   blood_sugar: Record<string, unknown>;
   blood_pressure: Record<string, unknown>;
   cholesterol: Record<string, unknown>;
-  other: Record<string, unknown> | null;
   visible_to_family: boolean;
 };
 
@@ -70,8 +64,5 @@ export function buildReportPayloads(data: HealthReportFormValues): ReportPayload
       total: Number(data.cholesterol_total),
       unit: data.cholesterol_unit,
     },
-    other: data.other_notes.trim()
-      ? { name: OTHER_RECORD_NAME, notes: data.other_notes.trim() }
-      : null,
   };
 }
