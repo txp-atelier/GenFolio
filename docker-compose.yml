@@ -41,8 +41,8 @@ services:
   frontend:
     build: ./frontend
     restart: unless-stopped
-    env_file:
-      - ./frontend/.env
+    # env_file:
+    #   - ./frontend/.env
     environment:
       BACKEND_INTERNAL_URL: http://backend:8000
     ports:
